@@ -94,6 +94,7 @@ h2{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px}
   <div class="big" id="heroPts">—</div>
   <div class="cap" id="heroCap">best legal lineup from your roster</div>
  </div>
+ <div id="alertBanner" style="display:none;background:rgba(255,92,122,.1);border:1px solid var(--neg);color:var(--neg);border-radius:12px;padding:11px 14px;font-size:12px;font-weight:600;margin-bottom:14px"></div>
  <div class="calls" id="calls"></div>
  <div class="card"><div class="ct"><span>Starting Lineup</span><span id="lineupTot" class="mini"></span></div><div id="starters"></div></div>
  <div class="card"><div class="ct">Bench</div><div id="bench"></div></div>
@@ -138,6 +139,7 @@ const esc=s=>(s||"").replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]
 const chip=p=>`<div class="pos-chip b${p}">${p}</div>`;
 function ownPill(o){const c=o>=70?'lo':o>=35?'md':'hi';return `<span class="pill ${c}">${o}%</span>`}
 function mBadge(p){if(!p.matchup||p.matchup=='even')return '';const g=p.matchup=='good';return `<span class="pill ${g?'hi':'lo'}" style="margin-left:6px">${g?'▲':'▼'} ${p.delta>0?'+':''}${p.delta}</span>`}
+function injBadge(p){const m={O:['OUT','lo'],D:['DBT','md'],Q:['Q','md']}[p.inj];return m?`<span class="pill ${m[1]}" style="margin-left:6px">${m[0]}</span>`:''}
 function oppTxt(p){const c=p.matchup=='good'?'--pos':p.matchup=='tough'?'--neg':'--dim';return `<span style="color:var(${c})">${p.opp||''}</span>`}
 
 Promise.all([F('draft'),F('week'),F('lineup'),F('meta')]).then(([d,w,l,m])=>{
@@ -148,12 +150,16 @@ Promise.all([F('draft'),F('week'),F('lineup'),F('meta')]).then(([d,w,l,m])=>{
 });
 
 /* ---------- THIS WEEK ---------- */
-function pRow(p,slot){return `<div class="row"><div class="slot">${slot||''}</div>${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}</div></div><div class="proj">${p.proj}<small>proj</small></div></div>`}
+function pRow(p,slot){return `<div class="row"><div class="slot">${slot||''}</div>${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${injBadge(p)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}</div></div><div class="proj">${p.proj}<small>proj</small></div></div>`}
 function renderWeek(){
  document.getElementById('heroPts').textContent=LINEUP.total;
  document.getElementById('starters').innerHTML=LINEUP.starters.map(s=>pRow(s,s.slot)).join('');
  document.getElementById('bench').innerHTML=(LINEUP.bench||[]).map(s=>pRow(s,'BN')).join('')||'<div class="row"><div class="pn m" style="color:var(--dim)">—</div></div>';
  document.getElementById('lineupTot').textContent=LINEUP.starters.length+' starters';
+ // injury alert banner
+ const al=(LINEUP.alerts||[]);const ab=document.getElementById('alertBanner');
+ ab.innerHTML=al.length?`⚠ <b>${al.length} availability alert${al.length>1?'s':''}:</b> ${al.map(a=>esc(a.name)+' ('+a.inj+')').join(', ')} — check status before lock.`:'';
+ ab.style.display=al.length?'block':'none';
  // start / sit calls: best starter vs a bench guy who's close
  const st=[...LINEUP.starters].sort((a,b)=>b.proj-a.proj)[0];
  const si=[...(LINEUP.bench||[])].sort((a,b)=>b.proj-a.proj)[0];
