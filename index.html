@@ -137,6 +137,8 @@ let dS=JSON.parse(localStorage.getItem("ttt_draft")||"{}"),dHist=JSON.parse(loca
 const esc=s=>(s||"").replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const chip=p=>`<div class="pos-chip b${p}">${p}</div>`;
 function ownPill(o){const c=o>=70?'lo':o>=35?'md':'hi';return `<span class="pill ${c}">${o}%</span>`}
+function mBadge(p){if(!p.matchup||p.matchup=='even')return '';const g=p.matchup=='good';return `<span class="pill ${g?'hi':'lo'}" style="margin-left:6px">${g?'▲':'▼'} ${p.delta>0?'+':''}${p.delta}</span>`}
+function oppTxt(p){const c=p.matchup=='good'?'--pos':p.matchup=='tough'?'--neg':'--dim';return `<span style="color:var(${c})">${p.opp||''}</span>`}
 
 Promise.all([F('draft'),F('week'),F('lineup'),F('meta')]).then(([d,w,l,m])=>{
  DRAFT=d;WEEK=w;LINEUP=l;META=m;
@@ -146,7 +148,7 @@ Promise.all([F('draft'),F('week'),F('lineup'),F('meta')]).then(([d,w,l,m])=>{
 });
 
 /* ---------- THIS WEEK ---------- */
-function pRow(p,slot){return `<div class="row"><div class="slot">${slot||''}</div>${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}</div><div class="m">${p.team} · ${p.opp||''}</div></div><div class="proj">${p.proj}<small>proj</small></div></div>`}
+function pRow(p,slot){return `<div class="row"><div class="slot">${slot||''}</div>${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}</div></div><div class="proj">${p.proj}<small>proj</small></div></div>`}
 function renderWeek(){
  document.getElementById('heroPts').textContent=LINEUP.total;
  document.getElementById('starters').innerHTML=LINEUP.starters.map(s=>pRow(s,s.slot)).join('');
@@ -169,7 +171,7 @@ function renderWaiver(){
  // "waiver-ish": lower-owned players, sorted by projection
  const list=WEEK.filter(p=>(wFilt=="ALL"||p.pos==wFilt)&&p.own<75).sort((a,b)=>b.proj-a.proj).slice(0,40);
  document.getElementById('waiverList').innerHTML=list.map(p=>
-  `<div class="row">${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}</div><div class="m">${p.team} · ${p.opp}</div></div><div class="own"><b>${p.own}%</b>owned</div><div class="proj">${p.proj}<small>proj</small></div></div>`
+  `<div class="row">${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}</div></div><div class="own"><b>${p.own}%</b>owned</div><div class="proj">${p.proj}<small>proj</small></div></div>`
  ).join('')||'<div class="row"><div class="pn m" style="color:var(--dim);padding:6px">No targets in this filter.</div></div>';
 }
 
