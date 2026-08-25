@@ -110,9 +110,9 @@ h2{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px}
 
 <!-- MY TEAM -->
 <section class="screen" id="s-team">
- <h2>My Team</h2><div class="sub" id="teamsub">Demo roster — connect ESPN to load yours.</div>
- <button class="cta" onclick="alert('ESPN league connection lands in Phase 2 — league ID + a couple cookies, then this pulls YOUR real roster, matchup, and league-wide availability.')">🔗 Connect ESPN League</button>
- <div class="card"><div class="ct">Roster</div><div id="teamRoster"></div></div>
+ <h2>My Team</h2><div class="sub" id="teamsub">Connect your league to load your real roster.</div>
+ <div id="connectBox"></div>
+ <div class="card" id="rosterCard" style="display:none"><div class="ct"><span>Roster</span><span id="connMeta" class="mini"></span></div><div id="teamRoster"></div></div>
 </section>
 
 <!-- DRAFT -->
@@ -142,10 +142,12 @@ function mBadge(p){if(!p.matchup||p.matchup=='even')return '';const g=p.matchup=
 function injBadge(p){const m={O:['OUT','lo'],D:['DBT','md'],Q:['Q','md']}[p.inj];return m?`<span class="pill ${m[1]}" style="margin-left:6px">${m[0]}</span>`:''}
 function oppTxt(p){const c=p.matchup=='good'?'--pos':p.matchup=='tough'?'--neg':'--dim';return `<span style="color:var(${c})">${p.opp||''}</span>`}
 
-Promise.all([F('draft'),F('week'),F('lineup'),F('meta')]).then(([d,w,l,m])=>{
- DRAFT=d;WEEK=w;LINEUP=l;META=m;
+Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk')]).then(([d,w,l,m,x])=>{
+ DRAFT=d;WEEK=w;LINEUP=l;META=m;XWALK=x;
  document.getElementById('wklbl').textContent='WEEK '+m.week;
  document.getElementById('statusbadge').textContent=m.status;
+ buildMaps();
+ if(CONN&&CONN.players){ applyConnectedRoster(); }        // personalize if already connected
  renderWeek();renderWaiver();renderTeam();renderDraft();initDraftUI();
 });
 
@@ -181,11 +183,90 @@ function renderWaiver(){
  ).join('')||'<div class="row"><div class="pn m" style="color:var(--dim);padding:6px">No targets in this filter.</div></div>';
 }
 
-/* ---------- MY TEAM ---------- */
-function renderTeam(){
- const all=[...LINEUP.starters,...(LINEUP.bench||[])];
- document.getElementById('teamRoster').innerHTML=all.map(p=>pRow(p,p.slot||'BN')).join('');
+/* ---------- LEAGUE CONNECTION (enterprise adapter layer) ---------- */
+let XWALK=[],SID={},EID={},CONN=JSON.parse(localStorage.getItem('ttt_conn')||'null');
+const PROXY='';  // set to the Cloudflare Worker URL once deployed (ESPN)
+const nrm=s=>(s||'').toLowerCase().replace(/[^a-z]/g,'');
+function buildMaps(){const byName={};WEEK.forEach(p=>byName[nrm(p.name)]=p);
+ XWALK.forEach(x=>{const p=byName[nrm(x.name)];if(!p)return;if(x.sleeper)SID[String(x.sleeper)]=p;if(x.espn)EID[String(x.espn)]=p;});}
+
+// --- adapters: each returns {platform, team, size, roster:[projPlayer...]} ---
+async function adapterSleeper(username,season){
+ const u=await fetch(`https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`).then(r=>r.json());
+ if(!u||!u.user_id)throw new Error('Sleeper username not found');
+ const lgs=await fetch(`https://api.sleeper.app/v1/user/${u.user_id}/leagues/nfl/${season}`).then(r=>r.json());
+ if(!lgs||!lgs.length)throw new Error('No '+season+' leagues on that account');
+ const lg=lgs[0];
+ const rosters=await fetch(`https://api.sleeper.app/v1/league/${lg.league_id}/rosters`).then(r=>r.json());
+ const mine=rosters.find(r=>r.owner_id===u.user_id)||rosters[0];
+ const roster=((mine&&mine.players)||[]).map(id=>SID[String(id)]).filter(Boolean);
+ return {platform:'Sleeper',team:lg.name,size:lg.total_rosters,roster};
 }
+async function adapterESPN(leagueId,s2,swid){
+ if(!PROXY)throw new Error('ESPN proxy not deployed yet — use Sleeper, or deploy the Cloudflare Worker.');
+ const q=`?leagueId=${leagueId}&season=2026`+(s2?`&s2=${encodeURIComponent(s2)}&swid=${encodeURIComponent(swid)}`:'');
+ const data=await fetch(PROXY+q).then(r=>r.json());
+ const team=(data.teams&&data.teams[0])||{};
+ const ids=((team.roster&&team.roster.entries)||[]).map(e=>e.playerId||(e.playerPoolEntry&&e.playerPoolEntry.player&&e.playerPoolEntry.player.id));
+ const roster=ids.map(id=>EID[String(id)]).filter(Boolean);
+ return {platform:'ESPN',team:team.name||'My Team',size:(data.teams||[]).length,roster};
+}
+
+// --- client-side optimizer (injury-aware) ---
+function optimize(roster){
+ const elig=roster.filter(p=>p.inj!=='O');let pool=elig.slice(),start=[];
+ [['QB',1],['RB',2],['WR',2],['TE',1]].forEach(([pos,n])=>{const s=pool.filter(p=>p.pos==pos).sort((a,b)=>b.proj-a.proj).slice(0,n);start=start.concat(s);pool=pool.filter(p=>!s.includes(p));});
+ const fl=pool.filter(p=>['RB','WR','TE'].includes(p.pos)).sort((a,b)=>b.proj-a.proj).slice(0,1);
+ const st=start.concat(fl.map(f=>({...f,slot:'FLEX'})));pool=pool.filter(p=>!fl.includes(p));
+ st.forEach(s=>s.slot=s.slot||s.pos);
+ const bench=roster.filter(p=>!st.some(s=>s.name===p.name));
+ const alerts=st.filter(s=>s.inj==='Q'||s.inj==='D').map(a=>({name:a.name,inj:a.inj}));
+ return {starters:st,bench,total:Math.round(st.reduce((t,s)=>t+s.proj,0)*10)/10,alerts,connected:true,team:CONN&&CONN.team};
+}
+function applyConnectedRoster(){
+ const roster=CONN.players.map(n=>WEEK.find(p=>p.name===n)).filter(Boolean);
+ if(roster.length){LINEUP=optimize(roster);}
+}
+
+// --- connect flow UI ---
+let cPlat='sleeper';
+function renderTeam(){
+ const box=document.getElementById('connectBox');
+ if(CONN){
+  document.getElementById('teamsub').textContent=`Connected · ${CONN.platform} · ${CONN.team}`;
+  box.innerHTML=`<button class="cta" style="background:var(--card2);color:var(--dim)" onclick="disconnect()">Disconnect ${esc(CONN.platform)} league</button>`;
+  const roster=CONN.players.map(n=>WEEK.find(p=>p.name===n)).filter(Boolean).sort((a,b)=>b.proj-a.proj);
+  document.getElementById('rosterCard').style.display='';
+  document.getElementById('connMeta').textContent=roster.length+' mapped';
+  document.getElementById('teamRoster').innerHTML=roster.map(p=>pRow(p,p.pos)).join('')||'<div class="row m" style="padding:10px;color:var(--dim)">No players mapped.</div>';
+  return;
+ }
+ document.getElementById('rosterCard').style.display='none';
+ box.innerHTML=`
+  <div class="tabs" style="margin-bottom:12px">
+   <div class="pf ${cPlat=='sleeper'?'on':''}" onclick="cPlat='sleeper';renderTeam()">Sleeper</div>
+   <div class="pf ${cPlat=='espn'?'on':''}" onclick="cPlat='espn';renderTeam()">ESPN</div>
+  </div>`+
+  (cPlat=='sleeper'?
+   `<div class="note">Type your <b>Sleeper username</b> — no password, no cookies. We pull your league instantly.</div>
+    <input id="slUser" placeholder="sleeper username" autocomplete="off">
+    <button class="cta" onclick="doSleeper()">Connect Sleeper</button>`
+  :
+   `<div class="note">Paste your <b>League ID</b> (from your ESPN league URL). Private leagues also need the <b>espn_s2</b> + <b>SWID</b> cookies. <b>Needs the Cloudflare proxy deployed.</b></div>
+    <input id="esLg" placeholder="ESPN league ID" autocomplete="off">
+    <input id="esS2" placeholder="espn_s2 (private leagues only)" autocomplete="off" style="margin-top:8px">
+    <input id="esSwid" placeholder="SWID (private leagues only)" autocomplete="off" style="margin-top:8px">
+    <button class="cta" onclick="doESPN()">Connect ESPN</button>`)+
+  `<div id="connErr" style="color:var(--neg);font-size:12px;text-align:center"></div>`;
+}
+function saveConn(res){CONN={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name)};
+ localStorage.setItem('ttt_conn',JSON.stringify(CONN));applyConnectedRoster();renderWeek();renderTeam();}
+function disconnect(){CONN=null;localStorage.removeItem('ttt_conn');F('lineup').then(l=>{LINEUP=l;renderWeek();renderTeam();});}
+async function doSleeper(){const u=document.getElementById('slUser').value.trim();if(!u)return;
+ const e=document.getElementById('connErr');e.textContent='connecting…';
+ try{const res=await adapterSleeper(u,2025);if(!res.roster.length)throw new Error('Roster loaded but no players mapped to projections yet.');saveConn(res);}catch(err){e.textContent=err.message;}}
+async function doESPN(){const e=document.getElementById('connErr');e.textContent='connecting…';
+ try{const res=await adapterESPN(document.getElementById('esLg').value.trim(),document.getElementById('esS2').value.trim(),document.getElementById('esSwid').value.trim());saveConn(res);}catch(err){e.textContent=err.message;}}
 
 /* ---------- DRAFT ---------- */
 const avail=p=>!dS[p.name];
