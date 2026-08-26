@@ -1,0 +1,24 @@
+name: Weekly data update
+on:
+  schedule:
+    - cron: '0 13 * * 3'   # Wed 13:00 UTC (in-season)
+    - cron: '0 14 * * 0'   # Sun 14:00 UTC (pre-games)
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r pipeline/requirements.txt
+      - run: python pipeline/weekly_update.py
+      - name: commit refreshed data
+        run: |
+          git config user.name "ttt-bot"
+          git config user.email "bot@throwinthetowel.app"
+          git add data/
+          git diff --staged --quiet || (git commit -m "weekly data update [auto]" && git push)
