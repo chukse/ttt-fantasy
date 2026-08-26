@@ -1,1 +1,1 @@
-{"season": 2026, "week": 1, "updated": "2026-08-08", "status": "preseason", "note": "Matchup-adjusted via the weekly model (2025 defense-vs-position). Live in-season data activates Week 1."}
+{"season": 2026, "week": 1, "updated": "2026-08-26", "status": "preseason", "source": "2025 priors (preseason)", "note": "Week 1 \u2014 projections from 2025 priors (preseason). Base ML + matchup + scheme + injuries."}
