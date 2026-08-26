@@ -179,7 +179,7 @@ function renderWaiver(){
  // "waiver-ish": lower-owned players, sorted by projection
  const list=WEEK.filter(p=>(wFilt=="ALL"||p.pos==wFilt)&&p.own<75).sort((a,b)=>b.proj-a.proj).slice(0,40);
  document.getElementById('waiverList').innerHTML=list.map(p=>
-  `<div class="row">${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}</div></div><div class="own"><b>${p.own}%</b>owned</div><div class="proj">${p.proj}<small>proj</small></div></div>`
+  `<div class="row">${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}${p.why?' · <span style="color:var(--primary2)">'+esc(p.why)+'</span>':''}</div></div><div class="own"><b>${p.own}%</b>owned</div><div class="proj">${p.proj}<small>proj</small></div></div>`
  ).join('')||'<div class="row"><div class="pn m" style="color:var(--dim);padding:6px">No targets in this filter.</div></div>';
 }
 
