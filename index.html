@@ -294,9 +294,29 @@ function renderTeam(){
 function saveConn(res){CONN={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name)};
  localStorage.setItem('ttt_conn',JSON.stringify(CONN));applyConnectedRoster();renderWeek();renderTeam();}
 function disconnect(){CONN=null;localStorage.removeItem('ttt_conn');F('lineup').then(l=>{LINEUP=l;renderWeek();renderTeam();});}
+let _slUser=null;
 async function doSleeper(){const u=document.getElementById('slUser').value.trim();if(!u)return;
- const e=document.getElementById('connErr');e.textContent='connecting…';
- try{const res=await adapterSleeper(u,2025);if(!res.roster.length)throw new Error('Roster loaded but no players mapped to projections yet.');saveConn(res);}catch(err){e.textContent=err.message;}}
+ const e=document.getElementById('connErr');e.innerHTML='finding your leagues…';
+ try{
+  const usr=await fetch(`https://api.sleeper.app/v1/user/${encodeURIComponent(u)}`).then(r=>r.json());
+  if(!usr||!usr.user_id)throw new Error('Sleeper username not found');
+  _slUser=usr.user_id;
+  let season=2026,lgs=await fetch(`https://api.sleeper.app/v1/user/${usr.user_id}/leagues/nfl/2026`).then(r=>r.json());
+  if(!lgs||!lgs.length){season=2025;lgs=await fetch(`https://api.sleeper.app/v1/user/${usr.user_id}/leagues/nfl/2025`).then(r=>r.json());}
+  if(!lgs||!lgs.length)throw new Error('No leagues found for 2026 or 2025 on that account.');
+  if(lgs.length===1){return pickSleeper(lgs[0].league_id,lgs[0].name,lgs[0].total_rosters);}
+  e.innerHTML=`<div class="note" style="margin:10px 0;color:var(--txt)">Pick your league (${season}):</div>`+
+   lgs.map(l=>`<button class="cta" style="background:var(--card2);color:var(--txt);margin:6px 0" onclick="pickSleeper('${l.league_id}','${esc(l.name).replace(/'/g,'’')}',${l.total_rosters})">${esc(l.name)} · ${l.total_rosters}-team</button>`).join('');
+ }catch(err){e.textContent=err.message;}}
+async function pickSleeper(leagueId,name,size){
+ const e=document.getElementById('connErr');e.innerHTML='loading roster…';
+ try{
+  const rosters=await fetch(`https://api.sleeper.app/v1/league/${leagueId}/rosters`).then(r=>r.json());
+  const mine=rosters.find(r=>r.owner_id===_slUser)||rosters[0];
+  const roster=((mine&&mine.players)||[]).map(id=>SID[String(id)]).filter(Boolean);
+  if(!roster.length)throw new Error('Roster loaded, but none of your players map to our projections yet (deep bench).');
+  saveConn({platform:'Sleeper',team:name,size,roster});
+ }catch(err){e.textContent=err.message;}}
 async function doESPN(){const e=document.getElementById('connErr');e.textContent='connecting…';
  try{const res=await adapterESPN(document.getElementById('esLg').value.trim(),document.getElementById('esS2').value.trim(),document.getElementById('esSwid').value.trim());saveConn(res);}catch(err){e.textContent=err.message;}}
 
