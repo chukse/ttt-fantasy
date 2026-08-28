@@ -56,7 +56,22 @@ def injuries(wk):
     except Exception:
         return {}
 
+def refresh_adp():
+    """Pull live consensus ADP (FantasyFootballCalculator) for the mock draft simulator."""
+    out = {}
+    for fmt, key in [("ppr","ppr"), ("half-ppr","half"), ("standard","std")]:
+        try:
+            d = requests.get(f"https://fantasyfootballcalculator.com/api/v1/adp/{fmt}?teams=12&year={SEASON}", timeout=25).json()
+            out[key] = [{"name":p["name"],"pos":p["position"],"team":p.get("team",""),"adp":round(p["adp"],1)}
+                        for p in d.get("players",[]) if p["position"] in ("QB","RB","WR","TE")]
+        except Exception:
+            pass
+    if out:
+        json.dump(out, open(os.path.join(DATA,"adp.json"),"w"))
+        print(f"[weekly_update] refreshed ADP: {', '.join(k+'='+str(len(v)) for k,v in out.items())}")
+
 def main():
+    refresh_adp()
     games = getcsv(GAMES)
     wk = current_week(games)
     w1 = games[(games.season==SEASON) & (games.week==wk)]
