@@ -72,6 +72,15 @@ h2{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px}
 .note{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:12px;color:var(--dim);margin-bottom:14px;line-height:1.5}
 .note b{color:var(--primary2)}
 .cta{display:block;width:100%;background:var(--grad);color:#fff;border:none;border-radius:14px;padding:14px;font-size:15px;font-weight:800;margin:8px 0 16px;cursor:pointer}
+.mrow{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.mrow:first-child{border-top:none}.mrow>span:first-child{font-weight:700;color:var(--dim);font-size:13px}
+.mopts{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.mopt{padding:6px 11px;border-radius:8px;background:var(--card2);border:1px solid var(--line);font-size:13px;font-weight:700;cursor:pointer;color:var(--dim)}
+.mopt.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+.slotwrap{max-height:120px;overflow-y:auto}
+.vtag{font-size:9px;font-weight:800;padding:2px 6px;border-radius:5px;margin-left:6px}
+.vtag.val{background:rgba(182,245,61,.15);color:var(--pos)}.vtag.rch{background:rgba(255,92,122,.15);color:var(--neg)}
+.pickbtn{background:var(--grad);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:800;cursor:pointer}
 /* bottom nav */
 .nav{position:fixed;bottom:0;left:0;right:0;max-width:560px;margin:0 auto;background:rgba(10,11,15,.92);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;padding:8px 6px calc(8px + env(safe-area-inset-bottom));z-index:30}
 .nav button{flex:1;background:none;border:none;color:var(--dim);font-size:10px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;cursor:pointer}
@@ -124,11 +133,34 @@ h2{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px}
  <div class="card"><div id="draftList"></div></div>
 </section>
 
+<!-- MOCK DRAFT -->
+<section class="screen" id="s-mock">
+ <h2>Mock Draft</h2><div class="sub">AI opponents draft by live consensus ADP. Our board shows the value.</div>
+ <div id="mockSetup">
+  <div class="card" style="padding:14px">
+   <div class="mrow"><span>Teams</span><span id="mTeams" class="mopts"></span></div>
+   <div class="mrow"><span>Your pick</span><span id="mSlot" class="mopts"></span></div>
+   <div class="mrow"><span>Type</span><span id="mType" class="mopts"></span></div>
+   <div class="mrow"><span>Scoring</span><span id="mScore" class="mopts"></span></div>
+   <div class="mrow"><span>Rounds</span><span id="mRounds" class="mopts"></span></div>
+  </div>
+  <button class="cta" onclick="startMock()">Start Mock Draft</button>
+ </div>
+ <div id="mockRoom" style="display:none">
+  <div id="mockStatus" class="hero" style="padding:14px"></div>
+  <div id="mockPickPanel"></div>
+  <div class="card"><div class="ct"><span>Your Team</span><span id="myCount" class="mini"></span></div><div id="myRoster"></div></div>
+  <div class="card"><div class="ct">Draft Log</div><div id="mockLog" style="max-height:230px;overflow:auto"></div></div>
+  <button class="cta" style="background:var(--card2);color:var(--dim)" onclick="mockReset()">↺ New Mock</button>
+ </div>
+</section>
+
 <nav class="nav" id="nav">
  <button data-s="week" class="on"><span class="ic">📊</span>Week</button>
  <button data-s="waiver"><span class="ic">🎯</span>Waiver</button>
  <button data-s="team"><span class="ic">🛡️</span>Team</button>
  <button data-s="draft"><span class="ic">🏈</span>Draft</button>
+ <button data-s="mock"><span class="ic">🎲</span>Mock</button>
 </nav>
 
 <script>
@@ -142,13 +174,13 @@ function mBadge(p){if(!p.matchup||p.matchup=='even')return '';const g=p.matchup=
 function injBadge(p){const m={O:['OUT','lo'],D:['DBT','md'],Q:['Q','md']}[p.inj];return m?`<span class="pill ${m[1]}" style="margin-left:6px">${m[0]}</span>`:''}
 function oppTxt(p){const c=p.matchup=='good'?'--pos':p.matchup=='tough'?'--neg':'--dim';return `<span style="color:var(${c})">${p.opp||''}</span>`}
 
-Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk')]).then(([d,w,l,m,x])=>{
- DRAFT=d;WEEK=w;LINEUP=l;META=m;XWALK=x;
+Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk'),F('adp').catch(()=>({}))]).then(([d,w,l,m,x,a])=>{
+ DRAFT=d;WEEK=w;LINEUP=l;META=m;XWALK=x;ADP=a||{};
  document.getElementById('wklbl').textContent='WEEK '+m.week;
  document.getElementById('statusbadge').textContent=m.status;
  buildMaps();
  if(CONN&&CONN.players){ applyConnectedRoster(); }        // personalize if already connected
- renderWeek();renderWaiver();renderTeam();renderDraft();initDraftUI();
+ renderWeek();renderWaiver();renderTeam();renderDraft();initDraftUI();initMockSetup();
 });
 
 /* ---------- THIS WEEK ---------- */
@@ -293,6 +325,74 @@ function renderDraft(){
 function initDraftUI(){
  const tb=document.getElementById('dtabs');["ALL","RB","WR","TE","QB"].forEach(t=>{const b=document.createElement('div');b.className='pf'+(t=="ALL"?' on':'');b.textContent=t;b.onclick=()=>{dFilt=t;[...tb.children].forEach(c=>c.classList.toggle('on',c.textContent==t));renderDraft()};tb.appendChild(b)});
  document.getElementById('q').addEventListener('input',renderDraft);
+}
+
+/* ---------- MOCK DRAFT SIMULATOR ---------- */
+let ADP={},MOCK=null,MCFG={teams:12,slot:6,type:'snake',score:'ppr',rounds:15};
+function optRow(id,vals,cur,fmt){const el=document.getElementById(id);if(!el)return;el.innerHTML='';
+ vals.forEach(v=>{const b=document.createElement('div');b.className='mopt'+(v==cur?' on':'');b.textContent=fmt?fmt(v):v;
+  b.onclick=()=>{const k={mTeams:'teams',mSlot:'slot',mType:'type',mScore:'score',mRounds:'rounds'}[id];MCFG[k]=v;initMockSetup();};el.appendChild(b);});}
+function initMockSetup(){
+ optRow('mTeams',[8,10,12,14],MCFG.teams);
+ optRow('mSlot',Array.from({length:MCFG.teams},(_,i)=>i+1),MCFG.slot);
+ optRow('mType',['snake','linear'],MCFG.type);
+ optRow('mScore',['ppr','half','std'],MCFG.score,v=>({ppr:'PPR',half:'Half',std:'Std'}[v]));
+ optRow('mRounds',[12,14,15,16],MCFG.rounds);
+ if(MCFG.slot>MCFG.teams)MCFG.slot=MCFG.teams;
+}
+function mockPool(){
+ const board={};DRAFT.forEach(p=>board[nrm(p.name)]=p);
+ const list=(ADP[MCFG.score]||ADP.ppr||[]);const pool={};
+ list.forEach((p,i)=>{const k=nrm(p.name);const b=board[k];
+  pool[k]={name:p.name,pos:p.pos,team:p.team,adp:p.adp,adpRk:i+1,ourRk:b?b.rk:999,pr:b?b.pr:null};});
+ DRAFT.forEach(p=>{const k=nrm(p.name);if(!pool[k])pool[k]={name:p.name,pos:p.pos,team:p.team,adp:999,adpRk:999,ourRk:p.rk,pr:p.pr};});
+ return Object.values(pool);
+}
+function startMock(){
+ MOCK={...MCFG,round:1,pickNo:1,rosters:Array.from({length:MCFG.teams},()=>[]),drafted:new Set(),pool:mockPool(),log:[]};
+ document.getElementById('mockSetup').style.display='none';document.getElementById('mockRoom').style.display='';
+ runMock();
+}
+function mockReset(){MOCK=null;document.getElementById('mockRoom').style.display='none';document.getElementById('mockSetup').style.display='';}
+function teamOnClock(){const t=MOCK.teams,p=MOCK.pickNo-1,rnd=Math.floor(p/t),idx=p%t;return(MOCK.type=='snake'&&rnd%2==1)?t-1-idx:idx;}
+function needs(roster,pos){const cap={QB:2,RB:6,WR:7,TE:3}[pos];return roster.filter(x=>x.pos==pos).length<cap;}
+function aiPick(ti){const r=MOCK.rosters[ti];
+ let a=MOCK.pool.filter(p=>!MOCK.drafted.has(p.name)&&needs(r,p.pos));
+ if(!a.length)a=MOCK.pool.filter(p=>!MOCK.drafted.has(p.name));
+ a.sort((x,y)=>x.adp-y.adp);const t=a.slice(0,3);const rr=Math.random();
+ return (rr<0.72?t[0]:rr<0.9?(t[1]||t[0]):(t[2]||t[0]))||a[0];}
+function commit(pl,ti){MOCK.drafted.add(pl.name);MOCK.rosters[ti].push(pl);
+ MOCK.log.unshift({r:MOCK.round,p:MOCK.pickNo,ti,pl});MOCK.pickNo++;MOCK.round=Math.floor((MOCK.pickNo-1)/MOCK.teams)+1;}
+function runMock(){
+ while(MOCK.pickNo<=MOCK.teams*MOCK.rounds){const t=teamOnClock();
+  if(t===MOCK.slot-1){renderMock(true);return;}commit(aiPick(t),t);}
+ renderMock(false,true);
+}
+function vtag(p){const d=p.adpRk-p.ourRk;if(p.ourRk>900||p.adpRk>900)return'';
+ if(d>=15)return`<span class="vtag val">VALUE +${d}</span>`;if(d<=-15)return`<span class="vtag rch">REACH ${d}</span>`;return'';}
+function renderMock(yourTurn,done){
+ const st=document.getElementById('mockStatus');
+ document.getElementById('myCount').textContent=MOCK.rosters[MOCK.slot-1].length+' picks';
+ // your roster
+ const mine=MOCK.rosters[MOCK.slot-1];
+ document.getElementById('myRoster').innerHTML=mine.map(p=>`<div class="row">${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}</div><div class="m">${p.team} · our #${p.ourRk} · ADP ${p.adp}</div></div></div>`).join('')||'<div class="row m" style="padding:10px;color:var(--dim)">No picks yet</div>';
+ // log
+ document.getElementById('mockLog').innerHTML=MOCK.log.slice(0,40).map(e=>`<div class="row" style="padding:7px 14px"><div class="slot">${e.r}.${(e.p-1)%MOCK.teams+1}</div>${chip(e.pl.pos)}<div class="pn"><div class="n" style="font-size:13px">${esc(e.pl.name)}${e.ti==MOCK.slot-1?' <span class="QB" style="font-size:10px">◄ YOU</span>':''}</div><div class="m">Team ${e.ti+1} · ADP ${e.pl.adp}</div></div></div>`).join('');
+ const panel=document.getElementById('mockPickPanel');
+ if(done){st.innerHTML=`<div class="lbl">Draft complete</div><div class="big" style="font-size:30px">Your Team</div><div class="cap">${grade(mine)}</div>`;panel.innerHTML='';return;}
+ if(yourTurn){
+  st.innerHTML=`<div class="opt">◉ ON THE CLOCK</div><div class="lbl">Round ${MOCK.round} · Pick ${(MOCK.pickNo-1)%MOCK.teams+1}</div><div class="big" style="font-size:30px">YOUR PICK</div>`;
+  const avail=MOCK.pool.filter(p=>!MOCK.drafted.has(p.name)).sort((a,b)=>a.ourRk-b.ourRk).slice(0,14);
+  panel.innerHTML=`<div class="card"><div class="ct"><span>Best available — our board</span><span class="mini">tap to draft</span></div>`+
+   avail.map(p=>`<div class="row"><div class="slot">#${p.ourRk<900?p.ourRk:'-'}</div>${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${vtag(p)}</div><div class="m">${p.team} · ${p.pos}${p.pr||''} · ADP ${p.adp<900?p.adp:'-'}</div></div><button class="pickbtn" onclick="youPick('${p.name.replace(/'/g,"\\'")}')">DRAFT</button></div>`).join('')+`</div>`;
+ }
+}
+function youPick(name){const pl=MOCK.pool.find(p=>p.name===name);if(!pl||MOCK.drafted.has(name))return;commit(pl,MOCK.slot-1);runMock();}
+function grade(mine){ // simple: avg value captured vs ADP
+ const vals=mine.filter(p=>p.ourRk<900&&p.adpRk<900).map(p=>p.adpRk-p.ourRk);
+ const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
+ const g=avg>=12?'A+':avg>=7?'A':avg>=3?'B+':avg>=0?'B':avg>=-4?'C':'D';
+ return `Value grade ${g} — you drafted ${avg>=0?'+':''}${avg.toFixed(0)} spots of ADP value per pick on our board.`;
 }
 
 /* ---------- NAV ---------- */
