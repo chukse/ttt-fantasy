@@ -186,6 +186,9 @@ Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk'),F('adp').
 /* ---------- THIS WEEK ---------- */
 function pRow(p,slot){return `<div class="row"><div class="slot">${slot||''}</div>${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${injBadge(p)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}</div></div><div class="proj">${p.proj}<small>proj</small></div></div>`}
 function renderWeek(){
+ const connected=CONN&&CONN.players;
+ document.getElementById('heroCap').innerHTML=connected?`your optimal lineup · ${esc(CONN.team)}`:`◈ DEMO team — connect your league on the 🛡️ Team tab for yours`;
+ document.querySelector('#s-week .opt').textContent=connected?'◉ OPTIMAL SET':'◈ DEMO';
  document.getElementById('heroPts').textContent=LINEUP.total;
  document.getElementById('starters').innerHTML=LINEUP.starters.map(s=>pRow(s,s.slot)).join('');
  document.getElementById('bench').innerHTML=(LINEUP.bench||[]).map(s=>pRow(s,'BN')).join('')||'<div class="row"><div class="pn m" style="color:var(--dim)">—</div></div>';
