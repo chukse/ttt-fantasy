@@ -211,8 +211,17 @@ let wFilt="ALL";
 function renderWaiver(){
  const tb=document.getElementById('wtabs');tb.innerHTML='';
  ["ALL","RB","WR","TE","QB"].forEach(t=>{const b=document.createElement('div');b.className='pf'+(t==wFilt?' on':'');b.textContent=t;b.onclick=()=>{wFilt=t;renderWaiver()};tb.appendChild(b)});
- // "waiver-ish": lower-owned players, sorted by projection
- const list=WEEK.filter(p=>(wFilt=="ALL"||p.pos==wFilt)&&p.own<75).sort((a,b)=>b.proj-a.proj).slice(0,40);
+ // league-specific: only players actually FREE in your league; else fall back to global ownership
+ const noteEl=document.querySelector('#s-waiver .note');
+ let list;
+ if(CONN&&CONN.rostered&&CONN.rostered.length){
+  const taken=new Set(CONN.rostered);
+  list=WEEK.filter(p=>(wFilt=="ALL"||p.pos==wFilt)&&!taken.has(p.name)).sort((a,b)=>b.proj-a.proj).slice(0,40);
+  if(noteEl)noteEl.innerHTML=`✓ <b>Available in your league</b> (${esc(CONN.team)}) — ranked by our weekly model + scheme edge.`;
+ }else{
+  list=WEEK.filter(p=>(wFilt=="ALL"||p.pos==wFilt)&&p.own<75).sort((a,b)=>b.proj-a.proj).slice(0,40);
+  if(noteEl)noteEl.innerHTML='The <b>% owned</b> is your chance a player\'s already taken. Connect your league (🛡️ Team) to filter this to only players <b>free in your league</b>.';
+ }
  document.getElementById('waiverList').innerHTML=list.map(p=>
   `<div class="row">${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}${p.why?' · <span style="color:var(--primary2)">'+esc(p.why)+'</span>':''}</div></div><div class="own"><b>${p.own}%</b>owned</div><div class="proj">${p.proj}<small>proj</small></div></div>`
  ).join('')||'<div class="row"><div class="pn m" style="color:var(--dim);padding:6px">No targets in this filter.</div></div>';
@@ -294,8 +303,8 @@ function renderTeam(){
     <button class="cta" onclick="doESPN()">Connect ESPN</button>`)+
   `<div id="connErr" style="color:var(--neg);font-size:12px;text-align:center"></div>`;
 }
-function saveConn(res){CONN={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name)};
- localStorage.setItem('ttt_conn',JSON.stringify(CONN));applyConnectedRoster();renderWeek();renderTeam();}
+function saveConn(res){CONN={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name),rostered:res.rostered||[]};
+ localStorage.setItem('ttt_conn',JSON.stringify(CONN));applyConnectedRoster();renderWeek();renderTeam();renderWaiver();}
 function disconnect(){CONN=null;localStorage.removeItem('ttt_conn');F('lineup').then(l=>{LINEUP=l;renderWeek();renderTeam();});}
 let _slUser=null;
 async function doSleeper(){const u=document.getElementById('slUser').value.trim();if(!u)return;
@@ -318,7 +327,8 @@ async function pickSleeper(leagueId,name,size){
   const mine=rosters.find(r=>r.owner_id===_slUser)||rosters[0];
   const roster=((mine&&mine.players)||[]).map(id=>SID[String(id)]).filter(Boolean);
   if(!roster.length)throw new Error('Roster loaded, but none of your players map to our projections yet (deep bench).');
-  saveConn({platform:'Sleeper',team:name,size,roster});
+  const taken=new Set();rosters.forEach(r=>(r.players||[]).forEach(id=>{const p=SID[String(id)];if(p)taken.add(p.name);}));
+  saveConn({platform:'Sleeper',team:name,size,roster,rostered:[...taken]});
  }catch(err){e.textContent=err.message;}}
 async function doESPN(){const e=document.getElementById('connErr');e.textContent='connecting…';
  try{const res=await adapterESPN(document.getElementById('esLg').value.trim(),document.getElementById('esS2').value.trim(),document.getElementById('esSwid').value.trim());saveConn(res);}catch(err){e.textContent=err.message;}}
