@@ -246,14 +246,15 @@ async function adapterSleeper(username,season){
  const roster=((mine&&mine.players)||[]).map(id=>SID[String(id)]).filter(Boolean);
  return {platform:'Sleeper',team:lg.name,size:lg.total_rosters,roster};
 }
-async function adapterESPN(leagueId,s2,swid){
- if(!PROXY)throw new Error('ESPN proxy not deployed yet — use Sleeper, or deploy the Cloudflare Worker.');
- const q=`?leagueId=${leagueId}&season=2026`+(s2?`&s2=${encodeURIComponent(s2)}&swid=${encodeURIComponent(swid)}`:'');
- const data=await fetch(PROXY+q).then(r=>r.json());
- const team=(data.teams&&data.teams[0])||{};
- const ids=((team.roster&&team.roster.entries)||[]).map(e=>e.playerId||(e.playerPoolEntry&&e.playerPoolEntry.player&&e.playerPoolEntry.player.id));
- const roster=ids.map(id=>EID[String(id)]).filter(Boolean);
- return {platform:'ESPN',team:team.name||'My Team',size:(data.teams||[]).length,roster};
+let _espnData=null;
+function espnTeamName(t){return t.name||((t.location||'')+' '+(t.nickname||'')).trim()||('Team '+t.id);}
+function espnIds(t){return((t.roster&&t.roster.entries)||[]).map(en=>en.playerId||(en.playerPoolEntry&&en.playerPoolEntry.player&&en.playerPoolEntry.player.id));}
+function pickESPN(teamId){
+ const data=_espnData;const team=data.teams.find(t=>String(t.id)===String(teamId));if(!team)return;
+ const roster=espnIds(team).map(id=>EID[String(id)]).filter(Boolean);
+ const taken=new Set();data.teams.forEach(t=>espnIds(t).forEach(id=>{const p=EID[String(id)];if(p)taken.add(p.name);}));
+ if(!roster.length){document.getElementById('connErr').textContent='Team loaded, but no players mapped to our projections yet.';return;}
+ saveConn({platform:'ESPN',team:espnTeamName(team),size:data.teams.length,roster,rostered:[...taken]});
 }
 
 // --- client-side optimizer (injury-aware) ---
@@ -330,8 +331,20 @@ async function pickSleeper(leagueId,name,size){
   const taken=new Set();rosters.forEach(r=>(r.players||[]).forEach(id=>{const p=SID[String(id)];if(p)taken.add(p.name);}));
   saveConn({platform:'Sleeper',team:name,size,roster,rostered:[...taken]});
  }catch(err){e.textContent=err.message;}}
-async function doESPN(){const e=document.getElementById('connErr');e.textContent='connecting…';
- try{const res=await adapterESPN(document.getElementById('esLg').value.trim(),document.getElementById('esS2').value.trim(),document.getElementById('esSwid').value.trim());saveConn(res);}catch(err){e.textContent=err.message;}}
+async function doESPN(){
+ const lg=document.getElementById('esLg').value.trim();const s2=document.getElementById('esS2').value.trim();const swid=document.getElementById('esSwid').value.trim();
+ const e=document.getElementById('connErr');if(!lg){e.textContent='enter your league ID';return;}
+ if(!PROXY){e.textContent='ESPN proxy not set up yet — deploy the Cloudflare Worker first.';return;}
+ e.innerHTML='connecting to ESPN…';
+ try{
+  const q=`?leagueId=${lg}&season=2026`+(s2?`&s2=${encodeURIComponent(s2)}&swid=${encodeURIComponent(swid)}`:'');
+  const data=await fetch(PROXY+q).then(r=>r.json());
+  if(!data||!data.teams||!data.teams.length)throw new Error('No teams found — check the league ID, and add cookies if it\'s a private league.');
+  _espnData=data;
+  if(data.teams.length===1)return pickESPN(data.teams[0].id);
+  e.innerHTML=`<div class="note" style="margin:10px 0;color:var(--txt)">Pick your team:</div>`+
+   data.teams.map(t=>`<button class="cta" style="background:var(--card2);color:var(--txt);margin:6px 0" onclick="pickESPN('${t.id}')">${esc(espnTeamName(t))}</button>`).join('');
+ }catch(err){e.textContent=err.message;}}
 
 /* ---------- DRAFT ---------- */
 const avail=p=>!dS[p.name];
