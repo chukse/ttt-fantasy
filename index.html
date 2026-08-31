@@ -229,7 +229,7 @@ function renderWaiver(){
 
 /* ---------- LEAGUE CONNECTION (enterprise adapter layer) ---------- */
 let XWALK=[],SID={},EID={},CONN=JSON.parse(localStorage.getItem('ttt_conn')||'null');
-const PROXY='';  // set to the Cloudflare Worker URL once deployed (ESPN)
+const PROXY='https://ttt-espn-proxy.chukegbuchunam.workers.dev/';  // ESPN CORS proxy (Cloudflare Worker)
 const nrm=s=>(s||'').toLowerCase().replace(/[^a-z]/g,'');
 function buildMaps(){const byName={};WEEK.forEach(p=>byName[nrm(p.name)]=p);
  XWALK.forEach(x=>{const p=byName[nrm(x.name)];if(!p)return;if(x.sleeper)SID[String(x.sleeper)]=p;if(x.espn)EID[String(x.espn)]=p;});}
