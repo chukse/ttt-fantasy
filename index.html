@@ -133,6 +133,22 @@ h2{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px}
  <div class="card"><div id="draftList"></div></div>
 </section>
 
+<!-- DRAFT PLAN -->
+<section class="screen" id="s-plan">
+ <h2>Draft Plan</h2><div class="sub">Your round-by-round guide — who's likely available at each of your picks, from our model + live ADP.</div>
+ <div id="planSetup">
+  <div class="card" style="padding:14px">
+   <div class="mrow"><span>Teams</span><span id="pTeams" class="mopts"></span></div>
+   <div class="mrow"><span>Your pick</span><span id="pSlot" class="mopts"></span></div>
+   <div class="mrow"><span>Scoring</span><span id="pScore" class="mopts"></span></div>
+   <div class="mrow"><span>Strategy</span><span id="pStrat" class="mopts"></span></div>
+   <div class="mrow"><span>Rounds</span><span id="pRounds" class="mopts"></span></div>
+  </div>
+  <button class="cta" onclick="generatePlan()">Generate My Draft Plan</button>
+ </div>
+ <div id="planOut" style="display:none"></div>
+</section>
+
 <!-- MOCK DRAFT -->
 <section class="screen" id="s-mock">
  <h2>Mock Draft</h2><div class="sub">AI opponents draft by live consensus ADP. Our board shows the value.</div>
@@ -160,6 +176,7 @@ h2{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px}
  <button data-s="waiver"><span class="ic">🎯</span>Waiver</button>
  <button data-s="team"><span class="ic">🛡️</span>Team</button>
  <button data-s="draft"><span class="ic">🏈</span>Draft</button>
+ <button data-s="plan"><span class="ic">📋</span>Plan</button>
  <button data-s="mock"><span class="ic">🎲</span>Mock</button>
 </nav>
 
@@ -180,7 +197,7 @@ Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk'),F('adp').
  document.getElementById('statusbadge').textContent=m.status;
  buildMaps();
  if(CONN&&CONN.players){ applyConnectedRoster(); }        // personalize if already connected
- renderWeek();renderWaiver();renderTeam();renderDraft();initDraftUI();initMockSetup();
+ renderWeek();renderWaiver();renderTeam();renderDraft();initDraftUI();initMockSetup();initPlanSetup();
 });
 
 /* ---------- THIS WEEK ---------- */
@@ -439,6 +456,51 @@ function grade(mine){ // simple: avg value captured vs ADP
  const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
  const g=avg>=12?'A+':avg>=7?'A':avg>=3?'B+':avg>=0?'B':avg>=-4?'C':'D';
  return `Value grade ${g} — you drafted ${avg>=0?'+':''}${avg.toFixed(0)} spots of ADP value per pick on our board.`;
+}
+
+/* ---------- DRAFT PLAN GENERATOR ---------- */
+let PCFG={teams:12,slot:6,score:'ppr',strat:'rb',rounds:15};
+function planOpt(id,vals,cur,key,fmt){const el=document.getElementById(id);if(!el)return;el.innerHTML='';
+ vals.forEach(v=>{const b=document.createElement('div');b.className='mopt'+(v==cur?' on':'');b.textContent=fmt?fmt(v):v;
+  b.onclick=()=>{PCFG[key]=v;initPlanSetup();};el.appendChild(b);});}
+function initPlanSetup(){
+ planOpt('pTeams',[8,10,12,14],PCFG.teams,'teams');
+ if(PCFG.slot>PCFG.teams)PCFG.slot=PCFG.teams;
+ planOpt('pSlot',Array.from({length:PCFG.teams},(_,i)=>i+1),PCFG.slot,'slot');
+ planOpt('pScore',['ppr','half','std'],PCFG.score,'score',v=>({ppr:'PPR',half:'Half',std:'Std'}[v]));
+ planOpt('pStrat',['rb','wr','bal','bpa'],PCFG.strat,'strat',v=>({rb:'RB-first',wr:'WR-first',bal:'Balanced',bpa:'Best avail'}[v]));
+ planOpt('pRounds',[12,14,15,16],PCFG.rounds,'rounds');
+}
+const NEEDPLAN={rb:['RB','RB','WR','WR','WR','FLEX','QB','TE'],wr:['WR','WR','RB','RB','WR','FLEX','QB','TE'],
+ bal:['RB','WR','RB','WR','FLEX','FLEX','QB','TE'],bpa:['BPA','BPA','BPA','BPA','BPA','BPA','QB','TE']};
+function bestPos(a,pos){return a.filter(p=>p.pos===pos).sort((x,y)=>x.ourRk-y.ourRk)[0];}
+function pickForTarget(a,tgt,r){
+ if(['RB','WR','TE','QB'].includes(tgt))return bestPos(a,tgt)||a.filter(p=>['RB','WR'].includes(p.pos)).sort((x,y)=>x.ourRk-y.ourRk)[0];
+ if(tgt==='FLEX')return a.filter(p=>['RB','WR'].includes(p.pos)).sort((x,y)=>x.ourRk-y.ourRk)[0];
+ // BPA — best RB/WR/TE by our board; hold QBs until ~round 7 (they always fall)
+ let pool=a.filter(p=>['RB','WR','TE'].includes(p.pos)&&(p.pos!=='TE'||p.ourRk<=15));
+ return pool.sort((x,y)=>x.ourRk-y.ourRk)[0]||a.sort((x,y)=>x.ourRk-y.ourRk)[0];
+}
+function vtagP(p){if(p.ourRk>900||p.adpRk>900)return'';const d=p.adpRk-p.ourRk;
+ if(d>=15)return`<span class="vtag val">VALUE +${d}</span>`;if(d<=-20)return`<span class="vtag rch">reach</span>`;return'';}
+function generatePlan(){
+ if(!ADP||!ADP[PCFG.score]){document.getElementById('planOut').style.display='';document.getElementById('planOut').innerHTML='<div class="note">ADP data not loaded yet — try again in a moment.</div>';return;}
+ const pool=mockPool();const T=PCFG.teams,S=PCFG.slot,R=PCFG.rounds;
+ const planned=new Set();let html=`<div class="note" style="margin-bottom:12px"><b>Plan:</b> ${({rb:'RB-first',wr:'WR-first',bal:'Balanced',bpa:'Best-available'}[PCFG.strat])} · pick ${S} of ${T} · snake. <b style="color:var(--primary2)">Wait on QB</b> — our model rates QBs high, but they fall; we grab a top one around Round 7-8 at a discount.</div>`;
+ for(let r=1;r<=R;r++){
+  const pk=(r-1)*T+(r%2===1?S:T-S+1);
+  const avail=pool.filter(p=>p.adpRk>=pk-1&&!planned.has(p.name));
+  const tgt=(NEEDPLAN[PCFG.strat]&&NEEDPLAN[PCFG.strat][r-1])||'BPA';
+  const rec=pickForTarget(avail,tgt,r);
+  if(rec)planned.add(rec.name);
+  // alternatives by position (2 each, excluding the rec)
+  const alt=pos=>avail.filter(p=>p.pos===pos&&(!rec||p.name!==rec.name)).sort((a,b)=>a.ourRk-b.ourRk).slice(0,2);
+  const altLine=['RB','WR','TE','QB'].map(pos=>{const xs=alt(pos);return xs.length?`<div class="m" style="padding:2px 0"><b class="${pos}">${pos}</b> ${xs.map(p=>esc(p.name.split(' ').slice(-1)[0])+' <span style="color:var(--dim)">('+(p.ourRk<900?'#'+p.ourRk:'-')+', adp '+(p.adp<900?Math.round(p.adp):'-')+')</span>').join(' · ')}</div>`:'';}).join('');
+  html+=`<div class="card"><div class="ct"><span>Round ${r} · Pick ${pk}</span><span class="mini">${rec?rec.pos+(rec.pr||''):''}</span></div>
+   ${rec?`<div class="row" style="background:rgba(123,97,255,.10)"><div class="slot" style="color:var(--primary2)">TAKE</div>${chip(rec.pos)}<div class="pn"><div class="n">${esc(rec.name)}${vtagP(rec)}</div><div class="m">our #${rec.ourRk<900?rec.ourRk:'-'} · ADP ${rec.adp<900?Math.round(rec.adp):'-'}</div></div></div>`:'<div class="row m" style="padding:10px;color:var(--dim)">Best available</div>'}
+   <div style="padding:8px 14px 10px">${altLine||'<div class="m" style="color:var(--dim)">deep round — take best available</div>'}</div></div>`;
+ }
+ const out=document.getElementById('planOut');out.style.display='';out.innerHTML=html+`<button class="cta" style="background:var(--card2);color:var(--dim)" onclick="document.getElementById('planOut').style.display='none'">↺ Change settings</button>`;
 }
 
 /* ---------- NAV ---------- */
