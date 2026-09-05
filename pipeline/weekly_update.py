@@ -70,8 +70,24 @@ def refresh_adp():
         json.dump(out, open(os.path.join(DATA,"adp.json"),"w"))
         print(f"[weekly_update] refreshed ADP: {', '.join(k+'='+str(len(v)) for k,v in out.items())}")
 
+def refresh_fpros():
+    """Pull FantasyPros expert consensus rankings (a source option in the draft plan)."""
+    out = {}
+    for sc, key in [("PPR","ppr"), ("HALF","half"), ("STD","std")]:
+        try:
+            d = requests.get(f"https://partners.fantasypros.com/api/v1/consensus-rankings.php?sport=NFL&year={SEASON}&week=0&experts=available&position=ALL&scoring={sc}&type=draft",
+                             headers={"User-Agent":"Mozilla/5.0"}, timeout=25).json()
+            out[key] = [{"name":p["player_name"],"pos":p["player_position_id"],"rank":p["rank_ecr"],"posrank":p.get("pos_rank","")}
+                        for p in d.get("players",[]) if p["player_position_id"] in ("QB","RB","WR","TE")]
+        except Exception:
+            pass
+    if out:
+        json.dump(out, open(os.path.join(DATA,"fpros.json"),"w"))
+        print(f"[weekly_update] refreshed FantasyPros: {', '.join(k+'='+str(len(v)) for k,v in out.items())}")
+
 def main():
     refresh_adp()
+    refresh_fpros()
     games = getcsv(GAMES)
     wk = current_week(games)
     w1 = games[(games.season==SEASON) & (games.week==wk)]
