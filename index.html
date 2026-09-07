@@ -503,9 +503,9 @@ function generatePlan(){
   const tgt=(NEEDPLAN[PCFG.strat]&&NEEDPLAN[PCFG.strat][r-1])||'BPA';
   const rec=pickForTarget(avail,tgt,r);
   if(rec)planned.add(rec.name);
-  const alt=pos=>avail.filter(p=>p.pos===pos&&(!rec||p.name!==rec.name)).sort((a,b)=>srcRank(a)-srcRank(b)).slice(0,2);
+  const alt=pos=>avail.filter(p=>p.pos===pos&&(!rec||p.name!==rec.name)).sort((a,b)=>srcRank(a)-srcRank(b)).slice(0,5);
   const rr=p=>srcRank(p)<900?'#'+srcRank(p):'-';
-  const altLine=['RB','WR','TE','QB'].map(pos=>{const xs=alt(pos);return xs.length?`<div class="m" style="padding:3px 0"><b class="${pos}">${pos}</b> ${xs.map(p=>esc(p.name)+' <span style="color:var(--dim)">('+srcL+' '+rr(p)+', adp '+(p.adp<900?Math.round(p.adp):'-')+')</span>').join(' · ')}</div>`:'';}).join('');
+  const altLine=['RB','WR','TE','QB'].map(pos=>{const xs=alt(pos);return xs.length?`<div style="padding:4px 0;border-top:1px solid var(--line)"><b class="${pos}" style="font-size:11px">${pos}</b> ${xs.map(p=>'<span style="font-size:13px">'+esc(p.name)+'</span> <span style="color:var(--dim);font-size:11px">('+srcL+rr(p)+'·adp'+(p.adp<900?Math.round(p.adp):'-')+')</span>').join(' &nbsp; ')}</div>`:'';}).join('');
   html+=`<div class="card"><div class="ct"><span>Round ${r} · Pick ${pk}</span><span class="mini">${rec?rec.pos+(rec.pr||''):''}</span></div>
    ${rec?`<div class="row" style="background:rgba(123,97,255,.10)"><div class="slot" style="color:var(--primary2)">TAKE</div>${chip(rec.pos)}<div class="pn"><div class="n">${esc(rec.name)}${vtagP(rec)}</div><div class="m">${srcL} ${rr(rec)} · ADP ${rec.adp<900?Math.round(rec.adp):'-'}</div></div></div>`:'<div class="row m" style="padding:10px;color:var(--dim)">Best available</div>'}
    <div style="padding:8px 14px 10px">${altLine||'<div class="m" style="color:var(--dim)">deep round — take best available</div>'}</div></div>`;
