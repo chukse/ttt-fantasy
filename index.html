@@ -246,7 +246,15 @@ function renderWaiver(){
 }
 
 /* ---------- LEAGUE CONNECTION (enterprise adapter layer) ---------- */
-let XWALK=[],SID={},EID={},CONN=JSON.parse(localStorage.getItem('ttt_conn')||'null');
+let XWALK=[],SID={},EID={};
+let LEAGUES=JSON.parse(localStorage.getItem('ttt_leagues')||'[]');
+let ACTIVE=+(localStorage.getItem('ttt_active')||0),addingLeague=false;
+(function(){const old=localStorage.getItem('ttt_conn');if(old&&!LEAGUES.length){try{const o=JSON.parse(old);if(o&&o.players){LEAGUES=[o];localStorage.setItem('ttt_leagues',JSON.stringify(LEAGUES));localStorage.removeItem('ttt_conn');}}catch(e){}}})();
+if(ACTIVE>=LEAGUES.length)ACTIVE=0;
+let CONN=LEAGUES[ACTIVE]||null;
+function saveLeagues(){localStorage.setItem('ttt_leagues',JSON.stringify(LEAGUES));localStorage.setItem('ttt_active',ACTIVE);}
+function setActive(i){ACTIVE=i;CONN=LEAGUES[i]||null;addingLeague=false;saveLeagues();applyConnectedRoster();renderWeek();renderTeam();renderWaiver();}
+function showAddLeague(){addingLeague=true;renderTeam();}
 const PROXY='https://ttt-espn-proxy.chukegbuchunam.workers.dev/';  // ESPN CORS proxy (Cloudflare Worker)
 const nrm=s=>(s||'').toLowerCase().replace(/[^a-z]/g,'');
 function buildMaps(){const byName={};WEEK.forEach(p=>byName[nrm(p.name)]=p);
@@ -293,19 +301,26 @@ function applyConnectedRoster(){
 
 // --- connect flow UI ---
 let cPlat='sleeper';
+function leagueSwitcher(){
+ if(!LEAGUES.length)return '';
+ return `<div class="tabs" style="margin-bottom:12px">`+
+  LEAGUES.map((l,i)=>`<div class="pf${(i===ACTIVE&&!addingLeague)?' on':''}" onclick="setActive(${i})">${esc(l.platform)} · ${esc(l.team)}</div>`).join('')+
+  `<div class="pf" style="border-style:dashed" onclick="showAddLeague()">+ Add</div></div>`;
+}
 function renderTeam(){
  const box=document.getElementById('connectBox');
- if(CONN){
-  document.getElementById('teamsub').textContent=`Connected · ${CONN.platform} · ${CONN.team}`;
-  box.innerHTML=`<button class="cta" style="background:var(--card2);color:var(--dim)" onclick="disconnect()">Disconnect ${esc(CONN.platform)} league</button>`;
+ if(CONN&&!addingLeague){
+  document.getElementById('teamsub').textContent=LEAGUES.length>1?`${LEAGUES.length} leagues connected · showing ${CONN.team}`:`${CONN.platform} · ${CONN.team}`;
+  box.innerHTML=leagueSwitcher()+`<button class="cta" style="background:var(--card2);color:var(--dim)" onclick="disconnect()">Disconnect ${esc(CONN.team)}</button>`;
   const roster=CONN.players.map(n=>WEEK.find(p=>p.name===n)).filter(Boolean).sort((a,b)=>b.proj-a.proj);
   document.getElementById('rosterCard').style.display='';
-  document.getElementById('connMeta').textContent=roster.length+' mapped';
+  document.getElementById('connMeta').textContent=CONN.platform+' · '+roster.length+' mapped';
   document.getElementById('teamRoster').innerHTML=roster.map(p=>pRow(p,p.pos)).join('')||'<div class="row m" style="padding:10px;color:var(--dim)">No players mapped.</div>';
   return;
  }
  document.getElementById('rosterCard').style.display='none';
- box.innerHTML=`
+ document.getElementById('teamsub').textContent=addingLeague?'Add another league':'Connect your league to load your real roster.';
+ box.innerHTML=leagueSwitcher()+`
   <div class="tabs" style="margin-bottom:12px">
    <div class="pf ${cPlat=='sleeper'?'on':''}" onclick="cPlat='sleeper';renderTeam()">Sleeper</div>
    <div class="pf ${cPlat=='espn'?'on':''}" onclick="cPlat='espn';renderTeam()">ESPN</div>
@@ -322,9 +337,12 @@ function renderTeam(){
     <button class="cta" onclick="doESPN()">Connect ESPN</button>`)+
   `<div id="connErr" style="color:var(--neg);font-size:12px;text-align:center"></div>`;
 }
-function saveConn(res){CONN={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name),rostered:res.rostered||[]};
- localStorage.setItem('ttt_conn',JSON.stringify(CONN));applyConnectedRoster();renderWeek();renderTeam();renderWaiver();}
-function disconnect(){CONN=null;localStorage.removeItem('ttt_conn');F('lineup').then(l=>{LINEUP=l;renderWeek();renderTeam();});}
+function saveConn(res){const lg={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name),rostered:res.rostered||[]};
+ const i=LEAGUES.findIndex(l=>l.platform===lg.platform&&l.team===lg.team);
+ if(i>=0){LEAGUES[i]=lg;ACTIVE=i;}else{LEAGUES.push(lg);ACTIVE=LEAGUES.length-1;}
+ CONN=lg;addingLeague=false;saveLeagues();applyConnectedRoster();renderWeek();renderTeam();renderWaiver();}
+function disconnect(){if(ACTIVE<LEAGUES.length)LEAGUES.splice(ACTIVE,1);ACTIVE=0;CONN=LEAGUES[0]||null;saveLeagues();
+ if(CONN){applyConnectedRoster();renderWeek();renderTeam();renderWaiver();}else{F('lineup').then(l=>{LINEUP=l;renderWeek();renderTeam();renderWaiver();});}}
 let _slUser=null;
 async function doSleeper(){const u=document.getElementById('slUser').value.trim();if(!u)return;
  const e=document.getElementById('connErr');e.innerHTML='finding your leagues…';
