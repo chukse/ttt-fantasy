@@ -199,6 +199,7 @@ Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk'),F('adp').
  buildMaps();
  if(CONN&&CONN.players){ applyConnectedRoster(); }        // personalize if already connected
  renderWeek();renderWaiver();renderTeam();renderDraft();initDraftUI();initMockSetup();initPlanSetup();
+ handleYahooRedirect();
 });
 
 /* ---------- THIS WEEK ---------- */
@@ -283,6 +284,46 @@ function pickESPN(teamId){
  saveConn({platform:'ESPN',team:espnTeamName(team),size:data.teams.length,roster,rostered:[...taken]});
 }
 
+// ---- YAHOO (OAuth via worker) ----
+const YID='dj0yJmk9dGE4NW8wYXd3RVdSJmQ9WVdrOWRIRkhPVmR3UjA0bWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PTQ2';
+function connectYahoo(){location.href=`https://api.login.yahoo.com/oauth2/request_auth?client_id=${encodeURIComponent(YID)}&redirect_uri=${encodeURIComponent(location.origin+location.pathname)}&response_type=code`;}
+function ymerge(a){const o={};if(Array.isArray(a))a.forEach(x=>{if(x&&typeof x==='object'&&!Array.isArray(x))Object.assign(o,x);});return o;}
+function ycollect(n,marker,out=[]){if(n&&typeof n==='object'){if(Array.isArray(n)){const m=ymerge(n);if(m[marker]!==undefined)out.push(m);n.forEach(x=>ycollect(x,marker,out));}else{for(const k in n)ycollect(n[k],marker,out);}}return out;}
+async function yapi(token,path){return fetch(PROXY+'?yahoo_api='+encodeURIComponent(path)+'&token='+encodeURIComponent(token)).then(r=>r.json());}
+function gotoTeamTab(){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));document.getElementById('s-team').classList.add('on');document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('on',x.dataset.s==='team'));}
+async function handleYahooRedirect(){
+ const q=new URLSearchParams(location.search);const code=q.get('code');if(!code)return;
+ history.replaceState({},'',location.pathname);gotoTeamTab();addingLeague=true;renderTeam();
+ const e=()=>document.getElementById('connErr');if(e())e().textContent='finishing Yahoo sign-in…';
+ try{
+  const tok=await fetch(PROXY+'?yahoo_code='+encodeURIComponent(code)).then(r=>r.json());
+  if(!tok.access_token)throw new Error('Yahoo token exchange failed: '+(tok.error_description||JSON.stringify(tok).slice(0,100)));
+  localStorage.setItem('ttt_ytok',JSON.stringify({t:tok.access_token,r:tok.refresh_token}));
+  await yahooTeams(tok.access_token);
+ }catch(err){if(e())e().textContent=err.message;}
+}
+async function yahooTeams(token){
+ const e=document.getElementById('connErr');
+ const d=await yapi(token,'users;use_login=1/games;game_keys=nfl/teams?format=json');
+ const seen={},list=[];
+ ycollect(d,'team_key').forEach(t=>{const k=t.team_key;if(k&&!seen[k]){seen[k]=1;list.push({key:k,name:(t.name&&(t.name.full||t.name))||('Team '+k)});}});
+ if(!list.length){if(e)e.textContent='Yahoo connected, but no 2026 NFL teams found on this account.';return;}
+ if(e)e.innerHTML=`<div class="note" style="margin:10px 0;color:var(--txt)">Pick your Yahoo team:</div>`+list.map(t=>`<button class="cta" style="background:var(--card2);color:var(--txt);margin:6px 0" onclick="pickYahoo('${t.key}','${esc(String(t.name)).replace(/'/g,'’')}')">${esc(String(t.name))}</button>`).join('');
+}
+async function pickYahoo(teamKey,name){
+ const e=document.getElementById('connErr');e.innerHTML='loading roster…';
+ try{
+  const tok=JSON.parse(localStorage.getItem('ttt_ytok')||'{}').t;
+  const d=await yapi(tok,`team/${teamKey}/roster/players?format=json`);
+  const roster=[],taken=new Set();
+  ycollect(d,'player_id').forEach(pl=>{const yid=String(pl.player_id);const full=(pl.name&&pl.name.full)||'';
+    const x=XWALK.find(z=>String(z.yahoo)===yid)||XWALK.find(z=>nrm(z.name)===nrm(full));
+    const nm=x?x.name:full;const wp=WEEK.find(w=>nrm(w.name)===nrm(nm));if(wp){roster.push(wp);taken.add(wp.name);}});
+  if(!roster.length)throw new Error('Roster loaded but no players mapped to our projections.');
+  saveConn({platform:'Yahoo',team:name,size:12,roster,rostered:[...taken]});
+ }catch(err){e.textContent=err.message;}
+}
+
 // --- client-side optimizer (injury-aware) ---
 function optimize(roster){
  const elig=roster.filter(p=>p.inj!=='O');let pool=elig.slice(),start=[];
@@ -324,17 +365,21 @@ function renderTeam(){
   <div class="tabs" style="margin-bottom:12px">
    <div class="pf ${cPlat=='sleeper'?'on':''}" onclick="cPlat='sleeper';renderTeam()">Sleeper</div>
    <div class="pf ${cPlat=='espn'?'on':''}" onclick="cPlat='espn';renderTeam()">ESPN</div>
+   <div class="pf ${cPlat=='yahoo'?'on':''}" onclick="cPlat='yahoo';renderTeam()">Yahoo</div>
   </div>`+
   (cPlat=='sleeper'?
    `<div class="note">Type your <b>Sleeper username</b> — no password, no cookies. We pull your league instantly.</div>
     <input id="slUser" placeholder="sleeper username" autocomplete="off">
     <button class="cta" onclick="doSleeper()">Connect Sleeper</button>`
-  :
-   `<div class="note">Paste your <b>League ID</b> (from your ESPN league URL). Private leagues also need the <b>espn_s2</b> + <b>SWID</b> cookies. <b>Needs the Cloudflare proxy deployed.</b></div>
+  : cPlat=='espn'?
+   `<div class="note">Paste your <b>League ID</b> (from your ESPN league URL). Private leagues also need the <b>espn_s2</b> + <b>SWID</b> cookies.</div>
     <input id="esLg" placeholder="ESPN league ID" autocomplete="off">
     <input id="esS2" placeholder="espn_s2 (private leagues only)" autocomplete="off" style="margin-top:8px">
     <input id="esSwid" placeholder="SWID (private leagues only)" autocomplete="off" style="margin-top:8px">
-    <button class="cta" onclick="doESPN()">Connect ESPN</button>`)+
+    <button class="cta" onclick="doESPN()">Connect ESPN</button>`
+  :
+   `<div class="note">Sign in with Yahoo to connect your league — you'll bounce to Yahoo and come right back. No cookies needed.</div>
+    <button class="cta" onclick="connectYahoo()">Sign in with Yahoo</button>`)+
   `<div id="connErr" style="color:var(--neg);font-size:12px;text-align:center"></div>`;
 }
 function saveConn(res){const lg={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name),rostered:res.rostered||[]};
