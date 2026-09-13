@@ -287,7 +287,23 @@ function pickESPN(teamId){
 // ---- YAHOO (OAuth via worker) ----
 const YID='dj0yJmk9dGE4NW8wYXd3RVdSJmQ9WVdrOWRIRkhPVmR3UjA0bWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PTQ2';
 const YREDIRECT='https://chukse.github.io/ttt-fantasy/';
-function connectYahoo(){location.href=`https://api.login.yahoo.com/oauth2/request_auth?client_id=${encodeURIComponent(YID)}&redirect_uri=${encodeURIComponent(YREDIRECT)}&response_type=code&scope=${encodeURIComponent('openid')}`;}
+function connectYahoo(){location.href=`https://api.login.yahoo.com/oauth2/request_auth?client_id=${encodeURIComponent(YID)}&redirect_uri=${encodeURIComponent(YREDIRECT)}&response_type=code`;}
+// ---- MANUAL ROSTER (works for any platform incl. Yahoo) ----
+let manualRoster=[];
+function manAdd(n){if(!manualRoster.includes(n))manualRoster.push(n);document.getElementById('manQ').value='';manRender();}
+function manRemove(n){manualRoster=manualRoster.filter(x=>x!==n);manRender();}
+function manRender(){
+ const q=(document.getElementById('manQ')?document.getElementById('manQ').value:'').toLowerCase();
+ const res=document.getElementById('manResults');const ros=document.getElementById('manRoster');if(!res||!ros)return;
+ res.innerHTML= q? WEEK.filter(p=>p.name.toLowerCase().includes(q)&&!manualRoster.includes(p.name)).slice(0,8).map(p=>`<div class="row" style="padding:8px 10px;cursor:pointer" onclick="manAdd('${p.name.replace(/'/g,"\\'")}')">${chip(p.pos)}<div class="pn"><div class="n" style="font-size:14px">${esc(p.name)}</div><div class="m">${p.team} · ${p.pos}${p.pr||''}</div></div><div class="proj">+</div></div>`).join('') : '';
+ ros.innerHTML=manualRoster.length?`<div class="ct" style="padding:8px 0 4px">Your roster (${manualRoster.length})</div>`+manualRoster.map(n=>{const p=WEEK.find(w=>w.name===n)||{name:n,pos:'',team:''};return `<div class="row" style="padding:7px 10px"><div class="pos-chip b${p.pos}">${p.pos}</div><div class="pn"><div class="n" style="font-size:14px">${esc(n)}</div></div><div class="star on" onclick="manRemove('${n.replace(/'/g,"\\'")}')">✕</div></div>`;}).join(''):'<div class="m" style="color:var(--dim);padding:8px 10px">Search and tap players to add them.</div>';
+}
+function manSave(){
+ if(manualRoster.length<3){document.getElementById('connErr').textContent='Add at least a few players first.';return;}
+ const name=(document.getElementById('manName')&&document.getElementById('manName').value.trim())||'My Team';
+ const roster=manualRoster.map(n=>WEEK.find(w=>w.name===n)).filter(Boolean);
+ saveConn({platform:'Manual',team:name,size:12,roster,rostered:[]});manualRoster=[];
+}
 function ymerge(a){const o={};if(Array.isArray(a))a.forEach(x=>{if(x&&typeof x==='object'&&!Array.isArray(x))Object.assign(o,x);});return o;}
 function ycollect(n,marker,out=[]){if(n&&typeof n==='object'){if(Array.isArray(n)){const m=ymerge(n);if(m[marker]!==undefined)out.push(m);n.forEach(x=>ycollect(x,marker,out));}else{for(const k in n)ycollect(n[k],marker,out);}}return out;}
 async function yapi(token,path){return fetch(PROXY+'?yahoo_api='+encodeURIComponent(path)+'&token='+encodeURIComponent(token)).then(r=>r.json());}
@@ -384,6 +400,7 @@ function renderTeam(){
    <div class="pf ${cPlat=='sleeper'?'on':''}" onclick="cPlat='sleeper';renderTeam()">Sleeper</div>
    <div class="pf ${cPlat=='espn'?'on':''}" onclick="cPlat='espn';renderTeam()">ESPN</div>
    <div class="pf ${cPlat=='yahoo'?'on':''}" onclick="cPlat='yahoo';renderTeam()">Yahoo</div>
+   <div class="pf ${cPlat=='manual'?'on':''}" onclick="cPlat='manual';renderTeam()">Manual</div>
   </div>`+
   (cPlat=='sleeper'?
    `<div class="note">Type your <b>Sleeper username</b> — no password, no cookies. We pull your league instantly.</div>
@@ -395,10 +412,18 @@ function renderTeam(){
     <input id="esS2" placeholder="espn_s2 (private leagues only)" autocomplete="off" style="margin-top:8px">
     <input id="esSwid" placeholder="SWID (private leagues only)" autocomplete="off" style="margin-top:8px">
     <button class="cta" onclick="doESPN()">Connect ESPN</button>`
+  : cPlat=='yahoo'?
+   `<div class="note">⚠️ Yahoo's current developer console blocks fantasy access for new apps, so auto-connect may fail. If it errors, use the <b>Manual</b> tab — it works for any Yahoo league.</div>
+    <button class="cta" onclick="connectYahoo()">Try Yahoo sign-in</button>`
   :
-   `<div class="note">Sign in with Yahoo to connect your league — you'll bounce to Yahoo and come right back. No cookies needed.</div>
-    <button class="cta" onclick="connectYahoo()">Sign in with Yahoo</button>`)+
+   `<div class="note">Build your roster by hand — works for <b>any</b> league (Yahoo, CBS, etc.). Search your players and tap to add them.</div>
+    <input id="manName" placeholder="league/team name (optional)" autocomplete="off">
+    <input id="manQ" placeholder="search a player to add…" autocomplete="off" oninput="manRender()" style="margin-top:8px">
+    <div id="manResults"></div>
+    <div id="manRoster" class="card" style="margin:8px 0"></div>
+    <button class="cta" onclick="manSave()">Save my team</button>`)+
   `<div id="connErr" style="color:var(--neg);font-size:12px;text-align:center"></div>`;
+ if(cPlat=='manual')manRender();
 }
 function saveConn(res){const lg={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name),rostered:res.rostered||[]};
  const i=LEAGUES.findIndex(l=>l.platform===lg.platform&&l.team===lg.team);
