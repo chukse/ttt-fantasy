@@ -286,15 +286,19 @@ function pickESPN(teamId){
 
 // ---- YAHOO (OAuth via worker) ----
 const YID='dj0yJmk9dGE4NW8wYXd3RVdSJmQ9WVdrOWRIRkhPVmR3UjA0bWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PTQ2';
-function connectYahoo(){location.href=`https://api.login.yahoo.com/oauth2/request_auth?client_id=${encodeURIComponent(YID)}&redirect_uri=${encodeURIComponent(location.origin+location.pathname)}&response_type=code&scope=${encodeURIComponent('openid fspt-r')}&prompt=consent`;}
+const YREDIRECT='https://chukse.github.io/ttt-fantasy/';
+function connectYahoo(){location.href=`https://api.login.yahoo.com/oauth2/request_auth?client_id=${encodeURIComponent(YID)}&redirect_uri=${encodeURIComponent(YREDIRECT)}&response_type=code&scope=${encodeURIComponent('openid')}`;}
 function ymerge(a){const o={};if(Array.isArray(a))a.forEach(x=>{if(x&&typeof x==='object'&&!Array.isArray(x))Object.assign(o,x);});return o;}
 function ycollect(n,marker,out=[]){if(n&&typeof n==='object'){if(Array.isArray(n)){const m=ymerge(n);if(m[marker]!==undefined)out.push(m);n.forEach(x=>ycollect(x,marker,out));}else{for(const k in n)ycollect(n[k],marker,out);}}return out;}
 async function yapi(token,path){return fetch(PROXY+'?yahoo_api='+encodeURIComponent(path)+'&token='+encodeURIComponent(token)).then(r=>r.json());}
 function gotoTeamTab(){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));document.getElementById('s-team').classList.add('on');document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('on',x.dataset.s==='team'));}
 async function handleYahooRedirect(){
- const q=new URLSearchParams(location.search);const code=q.get('code');if(!code)return;
- history.replaceState({},'',location.pathname);gotoTeamTab();addingLeague=true;renderTeam();
- const e=()=>document.getElementById('connErr');if(e())e().textContent='finishing Yahoo sign-in…';
+ const q=new URLSearchParams(location.search);const code=q.get('code');const err=q.get('error');
+ if(!code&&!err)return;
+ history.replaceState({},'',location.pathname);gotoTeamTab();addingLeague=true;cPlat='yahoo';renderTeam();
+ const e=()=>document.getElementById('connErr');
+ if(err){if(e())e().innerHTML='<div class="note" style="color:var(--txt)">Yahoo returned an error: <b>'+esc(err)+'</b><br>'+esc(q.get('error_description')||'')+'</div>';return;}
+ if(e())e().textContent='finishing Yahoo sign-in…';
  try{
   const tok=await fetch(PROXY+'?yahoo_code='+encodeURIComponent(code)).then(r=>r.json());
   if(!tok.access_token)throw new Error('Yahoo token exchange failed: '+(tok.error_description||JSON.stringify(tok).slice(0,100)));
