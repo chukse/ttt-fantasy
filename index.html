@@ -286,7 +286,7 @@ function pickESPN(teamId){
 
 // ---- YAHOO (OAuth via worker) ----
 const YID='dj0yJmk9dGE4NW8wYXd3RVdSJmQ9WVdrOWRIRkhPVmR3UjA0bWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PTQ2';
-function connectYahoo(){location.href=`https://api.login.yahoo.com/oauth2/request_auth?client_id=${encodeURIComponent(YID)}&redirect_uri=${encodeURIComponent(location.origin+location.pathname)}&response_type=code`;}
+function connectYahoo(){location.href=`https://api.login.yahoo.com/oauth2/request_auth?client_id=${encodeURIComponent(YID)}&redirect_uri=${encodeURIComponent(location.origin+location.pathname)}&response_type=code&scope=${encodeURIComponent('fspt-r')}`;}
 function ymerge(a){const o={};if(Array.isArray(a))a.forEach(x=>{if(x&&typeof x==='object'&&!Array.isArray(x))Object.assign(o,x);});return o;}
 function ycollect(n,marker,out=[]){if(n&&typeof n==='object'){if(Array.isArray(n)){const m=ymerge(n);if(m[marker]!==undefined)out.push(m);n.forEach(x=>ycollect(x,marker,out));}else{for(const k in n)ycollect(n[k],marker,out);}}return out;}
 async function yapi(token,path){return fetch(PROXY+'?yahoo_api='+encodeURIComponent(path)+'&token='+encodeURIComponent(token)).then(r=>r.json());}
