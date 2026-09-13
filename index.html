@@ -304,11 +304,25 @@ async function handleYahooRedirect(){
 }
 async function yahooTeams(token){
  const e=document.getElementById('connErr');
- const d=await yapi(token,'users;use_login=1/games;game_keys=nfl/teams?format=json');
- const seen={},list=[];
- ycollect(d,'team_key').forEach(t=>{const k=t.team_key;if(k&&!seen[k]){seen[k]=1;list.push({key:k,name:(t.name&&(t.name.full||t.name))||('Team '+k)});}});
- if(!list.length){if(e)e.textContent='Yahoo connected, but no 2026 NFL teams found on this account.';return;}
+ // try a few endpoints for robustness
+ let d=await yapi(token,'users;use_login=1/games;game_keys=nfl/teams?format=json');
+ let list=collectYahooTeams(d);
+ if(!list.length){d=await yapi(token,'users;use_login=1/games/teams?format=json');list=collectYahooTeams(d);}
+ if(!list.length){d=await yapi(token,'users;use_login=1/games;game_keys=nfl/leagues?format=json');list=collectYahooTeams(d);}
+ if(!list.length){
+  const raw=JSON.stringify(d);
+  if(e)e.innerHTML=`<div class="note" style="color:var(--txt)">No teams parsed — here's Yahoo's raw reply, copy &amp; send it to me:<br><textarea readonly style="width:100%;height:140px;font-size:10px;margin-top:6px;background:#0d1117;color:#e6edf3;border:1px solid var(--line);border-radius:8px">${esc(raw.slice(0,4000))}</textarea></div>`;
+  return;
+ }
  if(e)e.innerHTML=`<div class="note" style="margin:10px 0;color:var(--txt)">Pick your Yahoo team:</div>`+list.map(t=>`<button class="cta" style="background:var(--card2);color:var(--txt);margin:6px 0" onclick="pickYahoo('${t.key}','${esc(String(t.name)).replace(/'/g,'’')}')">${esc(String(t.name))}</button>`).join('');
+}
+function collectYahooTeams(d){
+ const seen={},list=[];
+ // teams
+ ycollect(d,'team_key').forEach(t=>{const k=t.team_key;if(k&&!seen[k]){seen[k]=1;list.push({key:k,name:(t.name&&(t.name.full||t.name))||('Team '+k)});}});
+ // fallback: leagues -> use league_key (we can derive team later)
+ if(!list.length)ycollect(d,'league_key').forEach(l=>{const k=l.league_key;if(k&&!seen[k]){seen[k]=1;list.push({key:k,name:(l.name&&(l.name.full||l.name))||('League '+k),isLeague:true});}});
+ return list;
 }
 async function pickYahoo(teamKey,name){
  const e=document.getElementById('connErr');e.innerHTML='loading roster…';
