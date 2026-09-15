@@ -241,9 +241,11 @@ function renderWaiver(){
   list=WEEK.filter(p=>(wFilt=="ALL"||p.pos==wFilt)&&p.own<75).sort((a,b)=>b.proj-a.proj).slice(0,40);
   if(noteEl)noteEl.innerHTML='The <b>% owned</b> is your chance a player\'s already taken. Connect your league (🛡️ Team) to filter this to only players <b>free in your league</b>.';
  }
- document.getElementById('waiverList').innerHTML=list.map(p=>
-  `<div class="row">${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}${p.why?' · <span style="color:var(--primary2)">'+esc(p.why)+'</span>':''}</div></div><div class="own"><b>${p.own}%</b>owned</div><div class="proj">${p.proj}<small>proj</small></div></div>`
- ).join('')||'<div class="row"><div class="pn m" style="color:var(--dim);padding:6px">No targets in this filter.</div></div>';
+ document.getElementById('waiverList').innerHTML=list.map(p=>{
+  const hot=(p.trend||0)>=3&&(p.form||0)>=9;
+  const formCol=(p.form!==undefined&&p.gp>0)?`<div class="own" style="min-width:40px"><b class="${hot?'':''}" style="${hot?'color:var(--pos)':''}">${p.form}</b>L3</div>`:'';
+  return `<div class="row">${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${hot?' <span class="pill hi">🔥</span>':''}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}${p.why?' · <span style="color:var(--primary2)">'+esc(p.why)+'</span>':''}</div></div>${formCol}<div class="own"><b>${p.own}%</b>own</div><div class="proj">${p.proj}<small>proj</small></div></div>`;
+ }).join('')||'<div class="row"><div class="pn m" style="color:var(--dim);padding:6px">No targets in this filter.</div></div>';
 }
 
 /* ---------- LEAGUE CONNECTION (enterprise adapter layer) ---------- */
