@@ -124,7 +124,7 @@ def main():
             proj*=clamp(1+pace+posb,0.90,1.12)
             if pos=="RB" and s["screen_rate_pct"]>=0.7: why.append("screen-heavy O")
         trend=round(r["l3"]-r["std"],1)                       # + = heating up
-        hot = r["gp"]>=1 and r["l3"]>=max(9,r["std"]*1.2)
+        hot = r["gp"]>=1 and r["l3"]>=12 and r["l3"]>r["base"]*1.3
         if hot: why.insert(0,"🔥 trending up")
         own=max(1,min(100,round(100/(1+math.exp((r["rk"]-95)/22))))) if r["rk"]<900 else max(1,min(60,round(r["l3"]*3)))
         week.append({"name":r["name"],"pos":pos,"team":tm,"opp":od,"proj":round(proj,1),"base":round(r["base"],1),
