@@ -239,12 +239,12 @@ function renderWaiver(){
   if(noteEl)noteEl.innerHTML=`✓ <b>Available in your league</b> (${esc(CONN.team)}) — ranked by our weekly model + scheme edge.`;
  }else{
   list=WEEK.filter(p=>(wFilt=="ALL"||p.pos==wFilt)&&p.own<75).sort((a,b)=>b.proj-a.proj).slice(0,40);
-  if(noteEl)noteEl.innerHTML='The <b>% owned</b> is your chance a player\'s already taken. Connect your league (🛡️ Team) to filter this to only players <b>free in your league</b>.';
+  if(noteEl)noteEl.innerHTML='<b>% rostered</b> is live ESPN data (▲/▼ = this week\'s add/drop trend). <b>L3</b> is last-3-week scoring. Connect your league (🛡️ Team) to filter to only players <b>free in your league</b>.';
  }
  document.getElementById('waiverList').innerHTML=list.map(p=>{
   const hot=(p.gp||0)>=1&&(p.form||0)>=12&&(p.form||0)>(p.base||0)*1.3;
   const formCol=(p.form!==undefined&&p.gp>0)?`<div class="own" style="min-width:40px"><b class="${hot?'':''}" style="${hot?'color:var(--pos)':''}">${p.form}</b>L3</div>`:'';
-  return `<div class="row">${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${hot?' <span class="pill hi">🔥</span>':''}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}${p.why?' · <span style="color:var(--primary2)">'+esc(p.why)+'</span>':''}</div></div>${formCol}<div class="own"><b>${p.own}%</b>own</div><div class="proj">${p.proj}<small>proj</small></div></div>`;
+  return `<div class="row">${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${hot?' <span class="pill hi">🔥</span>':''}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}${p.why?' · <span style="color:var(--primary2)">'+esc(p.why)+'</span>':''}</div></div>${formCol}<div class="own"><b>${p.own}%${(p.chg>=0.5)?' <span style="color:var(--pos)">▲</span>':(p.chg<=-0.5)?' <span style="color:#e5484d">▼</span>':''}</b>rostered</div><div class="proj">${p.proj}<small>proj</small></div></div>`;
  }).join('')||'<div class="row"><div class="pn m" style="color:var(--dim);padding:6px">No targets in this filter.</div></div>';
 }
 
