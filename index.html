@@ -4,11 +4,11 @@
 <title>Throw in the Towel — Fantasy</title>
 <style>
 :root{
- --bg:#0A0B0F;--card:#14161D;--card2:#1C1F29;--line:#262A36;
- --txt:#EDEFF4;--dim:#868D9E;
- --primary:#7B61FF;--primary2:#A88BFF;--grad:linear-gradient(135deg,#7B61FF 0%,#C4459C 100%);
- --pos:#B6F53D;--neg:#FF5C7A;--warn:#FFC24B;
- --RB:#38E08A;--WR:#4CA9FF;--TE:#FFC24B;--QB:#FF6FCF;
+ --bg:#0A0708;--card:#151011;--card2:#1F1719;--line:#2C2124;
+ --txt:#F4EFF0;--dim:#8C8085;
+ --primary:#E11D2A;--primary2:#FF6B6B;--grad:linear-gradient(135deg,#E11D2A 0%,#7A0C13 100%);
+ --pos:#34D399;--neg:#FF5A6A;--warn:#F5A623;
+ --RB:#34D399;--WR:#5AA9FF;--TE:#F5A623;--QB:#FF6FA5;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
 body{background:var(--bg);color:var(--txt);font:15px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;padding-bottom:76px;max-width:560px;margin:0 auto}
@@ -87,8 +87,60 @@ h2{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px}
 .nav button.on{color:var(--primary2)}
 .nav .ic{font-size:19px;line-height:1}
 .mini{font-size:10px;font-weight:800;color:var(--dim)}
+/* svg icons */
+.ic-svg{display:inline-block;vertical-align:-2px;flex:none}
+.nav .ic-svg{width:21px;height:21px}
+.subtabs{display:flex;gap:6px;margin-bottom:14px}
+.subtabs .pf{flex:1;text-align:center}
+/* trade analyzer */
+.tside{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.tbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;min-height:84px}
+.tbox h4{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim);margin-bottom:8px;display:flex;justify-content:space-between}
+.tchip{display:flex;align-items:center;gap:7px;background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:6px 8px;margin-bottom:6px;font-size:13px;font-weight:700}
+.tchip .x{margin-left:auto;color:var(--dim);cursor:pointer;font-weight:800}
+.verdict{border-radius:16px;padding:16px;text-align:center;margin-bottom:12px;border:1px solid var(--line)}
+.verdict.win{background:rgba(52,211,153,.10);border-color:rgba(52,211,153,.4)}
+.verdict.lose{background:rgba(255,90,106,.10);border-color:rgba(255,90,106,.4)}
+.verdict.fair{background:var(--card2)}
+.verdict .vg{font-size:30px;font-weight:900;letter-spacing:-1px;line-height:1.05}
+.verdict .vs{font-size:12px;color:var(--dim);font-weight:700;margin-top:4px}
+.fair-bar{height:8px;border-radius:6px;background:var(--card2);overflow:hidden;margin:12px 0 4px;display:flex}
+.fair-bar i{display:block;height:100%}
+/* odds */
+.odds-hero{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.oc{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;text-align:center}
+.oc .n{font-size:34px;font-weight:900;letter-spacing:-1.5px;line-height:1}
+.oc .l{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim);margin-top:4px}
+.obar{height:7px;border-radius:5px;background:var(--card2);overflow:hidden;margin-top:8px}
+.obar i{display:block;height:100%;background:var(--grad)}
+/* chat */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 210px);min-height:360px}
+.chat-log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 0 10px}
+.bub{max-width:86%;padding:10px 13px;border-radius:15px;font-size:14px;line-height:1.4}
+.bub.me{align-self:flex-end;background:var(--grad);color:#fff;border-bottom-right-radius:5px}
+.bub.ai{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-bottom-left-radius:5px}
+.bub.ai b{color:var(--primary2)}
+.chip-row{display:flex;gap:7px;flex-wrap:wrap;margin:2px 0 10px}
+.qchip{font-size:12px;font-weight:700;background:var(--card2);border:1px solid var(--line);border-radius:20px;padding:7px 12px;cursor:pointer;color:var(--txt)}
+.chat-in{display:flex;gap:8px;align-items:center;padding-top:8px;border-top:1px solid var(--line)}
+.chat-in input{flex:1;background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:22px;padding:12px 16px;font-size:15px}
+.chat-in button{background:var(--grad);border:none;border-radius:50%;width:44px;height:44px;color:#fff;cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center}
 </style></head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+ <symbol id="i-week" viewBox="0 0 24 24"><path d="M4 20V11M12 20V4M20 20V14"/></symbol>
+ <symbol id="i-waiver" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8.5v7M8.5 12h7"/></symbol>
+ <symbol id="i-team" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 6.7-7 8.5C8 18.7 5 16 5 12V6l7-3z"/></symbol>
+ <symbol id="i-draft" viewBox="0 0 24 24"><rect x="6" y="4.5" width="12" height="16" rx="2"/><path d="M9.5 4.5h5v2.5h-5z"/><path d="M9 11.5h6M9 15h4"/></symbol>
+ <symbol id="i-plan" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.3"/><circle cx="4.5" cy="12" r="1.3"/><circle cx="4.5" cy="18" r="1.3"/></symbol>
+ <symbol id="i-mock" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></symbol>
+ <symbol id="i-trade" viewBox="0 0 24 24"><path d="M4 9h13l-4-4M20 15H7l4 4"/></symbol>
+ <symbol id="i-odds" viewBox="0 0 24 24"><path d="M8 4h8v4.5a4 4 0 0 1-8 0V4z"/><path d="M8 6H5.2v.8a3 3 0 0 0 3 3M16 6h2.8v.8a3 3 0 0 1-3 3"/><path d="M12 12.5V16M9 20h6M10.5 17h3"/></symbol>
+ <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4.5 5.5h15v10H10l-4.5 3.5v-3.5H4.5z"/></symbol>
+ <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3.5c3 3.7 5 5.8 5 8.8a5 5 0 0 1-10 0c0-1.4.6-2.6 1.4-3.4C9 10 10 8.2 12 3.5z"/></symbol>
+ <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4l8.5 15H3.5L12 4z"/><path d="M12 10v4M12 16.5v.3"/></symbol>
+ <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3L5 13.5h6l-1 7.5 8-10.5h-6l1-7.5z"/></symbol>
+</defs></svg>
 <div class="top">
  <div class="brand"><span class="dot"></span>THROW IN THE TOWEL</div>
  <div style="display:flex;align-items:center;gap:8px"><span class="wk" id="wklbl">WEEK 1</span><span class="badge" id="statusbadge">preseason</span></div>
@@ -127,6 +179,7 @@ h2{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px}
 <!-- DRAFT -->
 <section class="screen" id="s-draft">
  <h2>Draft Board</h2><div class="sub">Tap a player when he's drafted · ★ your picks</div>
+ <div class="subtabs"><div class="pf on" data-v="draft" onclick="draftView('draft')">Board</div><div class="pf" data-v="plan" onclick="draftView('plan')">Plan</div><div class="pf" data-v="mock" onclick="draftView('mock')">Mock</div></div>
  <div class="best" id="best"></div>
  <input id="q" placeholder="search…" autocomplete="off">
  <div class="tabs" id="dtabs"></div>
@@ -136,6 +189,7 @@ h2{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px}
 <!-- DRAFT PLAN -->
 <section class="screen" id="s-plan">
  <h2>Draft Plan</h2><div class="sub">Your round-by-round guide — who's likely available at each of your picks, from our model + live ADP.</div>
+ <div class="subtabs"><div class="pf" data-v="draft" onclick="draftView('draft')">Board</div><div class="pf on" data-v="plan" onclick="draftView('plan')">Plan</div><div class="pf" data-v="mock" onclick="draftView('mock')">Mock</div></div>
  <div id="planSetup">
   <div class="card" style="padding:14px">
    <div class="mrow"><span>Teams</span><span id="pTeams" class="mopts"></span></div>
@@ -153,6 +207,7 @@ h2{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px}
 <!-- MOCK DRAFT -->
 <section class="screen" id="s-mock">
  <h2>Mock Draft</h2><div class="sub">AI opponents draft by live consensus ADP. Our board shows the value.</div>
+ <div class="subtabs"><div class="pf" data-v="draft" onclick="draftView('draft')">Board</div><div class="pf" data-v="plan" onclick="draftView('plan')">Plan</div><div class="pf on" data-v="mock" onclick="draftView('mock')">Mock</div></div>
  <div id="mockSetup">
   <div class="card" style="padding:14px">
    <div class="mrow"><span>Teams</span><span id="mTeams" class="mopts"></span></div>
@@ -172,13 +227,50 @@ h2{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px}
  </div>
 </section>
 
+<!-- TRADE ANALYZER -->
+<section class="screen" id="s-trade">
+ <h2>Trade Analyzer</h2><div class="sub">Build a deal. We price both sides on our board and tell you straight — fair, or not.</div>
+ <div id="tradeVerdict"></div>
+ <div class="tside">
+  <div class="tbox"><h4><span>You give</span><span id="tGiveTot" class="mini"></span></h4><div id="tGiveList"></div></div>
+  <div class="tbox"><h4><span>You get</span><span id="tGetTot" class="mini"></span></h4><div id="tGetList"></div></div>
+ </div>
+ <div class="tabs" style="margin-bottom:8px">
+  <div class="pf on" id="tSideGive" onclick="tSetSide('give')">+ Add to GIVE</div>
+  <div class="pf" id="tSideGet" onclick="tSetSide('get')">+ Add to GET</div>
+ </div>
+ <input id="tQ" placeholder="search a player to add…" autocomplete="off" oninput="tSearch()" style="width:100%;background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:12px;padding:11px 14px;font-size:15px">
+ <div id="tResults"></div>
+ <div id="tBreakdown"></div>
+</section>
+
+<!-- CHANCE TO WIN -->
+<section class="screen" id="s-odds">
+ <h2>Chance to Win</h2><div class="sub" id="oddsSub">Your playoff and title odds, simulated from every team's roster strength.</div>
+ <div id="oddsBody"></div>
+</section>
+
+<!-- CHAT ASSISTANT -->
+<section class="screen" id="s-chat">
+ <h2>Ask the Towel</h2><div class="sub">Plain-English answers, grounded in our numbers — start/sit, waivers, trades, odds.</div>
+ <div class="chat-wrap">
+  <div class="chat-log" id="chatLog"></div>
+  <div class="chip-row" id="chatChips"></div>
+  <div class="chat-in">
+   <input id="chatQ" placeholder="ask anything…" autocomplete="off" onkeydown="if(event.key==='Enter')chatSend()">
+   <button onclick="chatSend()"><svg class="ic-svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bolt"/></svg></button>
+  </div>
+ </div>
+</section>
+
 <nav class="nav" id="nav">
- <button data-s="week" class="on"><span class="ic">📊</span>Week</button>
- <button data-s="waiver"><span class="ic">🎯</span>Waiver</button>
- <button data-s="team"><span class="ic">🛡️</span>Team</button>
- <button data-s="draft"><span class="ic">🏈</span>Draft</button>
- <button data-s="plan"><span class="ic">📋</span>Plan</button>
- <button data-s="mock"><span class="ic">🎲</span>Mock</button>
+ <button data-s="week" class="on"><svg class="ic-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-week"/></svg>Week</button>
+ <button data-s="waiver"><svg class="ic-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-waiver"/></svg>Waiver</button>
+ <button data-s="trade"><svg class="ic-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-trade"/></svg>Trade</button>
+ <button data-s="odds"><svg class="ic-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-odds"/></svg>Odds</button>
+ <button data-s="chat"><svg class="ic-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chat"/></svg>Chat</button>
+ <button data-s="draft"><svg class="ic-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-draft"/></svg>Draft</button>
+ <button data-s="team"><svg class="ic-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-team"/></svg>Team</button>
 </nav>
 
 <script>
@@ -187,6 +279,7 @@ let DRAFT=[],WEEK=[],LINEUP={},META={};
 let dS=JSON.parse(localStorage.getItem("ttt_draft")||"{}"),dHist=JSON.parse(localStorage.getItem("ttt_hist")||"[]"),dFilt="ALL";
 const esc=s=>(s||"").replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const chip=p=>`<div class="pos-chip b${p}">${p}</div>`;
+const ICON=(n,s)=>`<svg class="ic-svg" width="${s||16}" height="${s||16}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-${n}"/></svg>`;
 function ownPill(o){const c=o>=70?'lo':o>=35?'md':'hi';return `<span class="pill ${c}">${o}%</span>`}
 function mBadge(p){if(!p.matchup||p.matchup=='even')return '';const g=p.matchup=='good';return `<span class="pill ${g?'hi':'lo'}" style="margin-left:6px">${g?'▲':'▼'} ${p.delta>0?'+':''}${p.delta}</span>`}
 function injBadge(p){const m={O:['OUT','lo'],D:['DBT','md'],Q:['Q','md']}[p.inj];return m?`<span class="pill ${m[1]}" style="margin-left:6px">${m[0]}</span>`:''}
@@ -214,7 +307,7 @@ function renderWeek(){
  document.getElementById('lineupTot').textContent=LINEUP.starters.length+' starters';
  // injury alert banner
  const al=(LINEUP.alerts||[]);const ab=document.getElementById('alertBanner');
- ab.innerHTML=al.length?`⚠ <b>${al.length} availability alert${al.length>1?'s':''}:</b> ${al.map(a=>esc(a.name)+' ('+a.inj+')').join(', ')} — check status before lock.`:'';
+ ab.innerHTML=al.length?`${ICON('warn',14)} <b>${al.length} availability alert${al.length>1?'s':''}:</b> ${al.map(a=>esc(a.name)+' ('+a.inj+')').join(', ')} — check status before lock.`:'';
  ab.style.display=al.length?'block':'none';
  // start / sit calls: best starter vs a bench guy who's close
  const st=[...LINEUP.starters].sort((a,b)=>b.proj-a.proj)[0];
@@ -239,12 +332,12 @@ function renderWaiver(){
   if(noteEl)noteEl.innerHTML=`✓ <b>Available in your league</b> (${esc(CONN.team)}) — ranked by our weekly model + scheme edge.`;
  }else{
   list=WEEK.filter(p=>(wFilt=="ALL"||p.pos==wFilt)&&p.own<75).sort((a,b)=>b.proj-a.proj).slice(0,40);
-  if(noteEl)noteEl.innerHTML='<b>% rostered</b> is live ESPN data (▲/▼ = this week\'s add/drop trend). <b>L3</b> is last-3-week scoring. Connect your league (🛡️ Team) to filter to only players <b>free in your league</b>.';
+  if(noteEl)noteEl.innerHTML='<b>% rostered</b> is live ESPN data (▲/▼ = this week\'s add/drop trend). <b>L3</b> is last-3-week scoring. Connect your league on the <b>Team</b> tab to filter to only players <b>free in your league</b>.';
  }
  document.getElementById('waiverList').innerHTML=list.map(p=>{
   const hot=(p.gp||0)>=1&&(p.form||0)>=12&&(p.form||0)>(p.base||0)*1.3;
   const formCol=(p.form!==undefined&&p.gp>0)?`<div class="own" style="min-width:40px"><b class="${hot?'':''}" style="${hot?'color:var(--pos)':''}">${p.form}</b>L3</div>`:'';
-  return `<div class="row">${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${hot?' <span class="pill hi">🔥</span>':''}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}${p.why?' · <span style="color:var(--primary2)">'+esc(p.why)+'</span>':''}</div></div>${formCol}<div class="own"><b>${p.own}%${(p.chg>=0.5)?' <span style="color:var(--pos)">▲</span>':(p.chg<=-0.5)?' <span style="color:#e5484d">▼</span>':''}</b>rostered</div><div class="proj">${p.proj}<small>proj</small></div></div>`;
+  return `<div class="row">${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${hot?' <span class="pill hi" style="color:var(--primary2)">'+ICON('flame',12)+' HOT</span>':''}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}${p.why?' · <span style="color:var(--primary2)">'+esc(p.why)+'</span>':''}</div></div>${formCol}<div class="own"><b>${p.own}%${(p.chg>=0.5)?' <span style="color:var(--pos)">▲</span>':(p.chg<=-0.5)?' <span style="color:#e5484d">▼</span>':''}</b>rostered</div><div class="proj">${p.proj}<small>proj</small></div></div>`;
  }).join('')||'<div class="row"><div class="pn m" style="color:var(--dim);padding:6px">No targets in this filter.</div></div>';
 }
 
@@ -283,7 +376,8 @@ function pickESPN(teamId){
  const roster=espnIds(team).map(id=>EID[String(id)]).filter(Boolean);
  const taken=new Set();data.teams.forEach(t=>espnIds(t).forEach(id=>{const p=EID[String(id)];if(p)taken.add(p.name);}));
  if(!roster.length){document.getElementById('connErr').textContent='Team loaded, but no players mapped to our projections yet.';return;}
- saveConn({platform:'ESPN',team:espnTeamName(team),size:data.teams.length,roster,rostered:[...taken]});
+ const teams=data.teams.map(t=>({name:espnTeamName(t),mine:String(t.id)===String(teamId),players:espnIds(t).map(id=>EID[String(id)]).filter(Boolean).map(p=>p.name)}));
+ saveConn({platform:'ESPN',team:espnTeamName(team),size:data.teams.length,roster,rostered:[...taken],teams});
 }
 
 // ---- YAHOO (OAuth via worker) ----
@@ -427,7 +521,7 @@ function renderTeam(){
   `<div id="connErr" style="color:var(--neg);font-size:12px;text-align:center"></div>`;
  if(cPlat=='manual')manRender();
 }
-function saveConn(res){const lg={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name),rostered:res.rostered||[]};
+function saveConn(res){const lg={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name),rostered:res.rostered||[],teams:res.teams||[]};
  const i=LEAGUES.findIndex(l=>l.platform===lg.platform&&l.team===lg.team);
  if(i>=0){LEAGUES[i]=lg;ACTIVE=i;}else{LEAGUES.push(lg);ACTIVE=LEAGUES.length-1;}
  CONN=lg;addingLeague=false;saveLeagues();applyConnectedRoster();renderWeek();renderTeam();renderWaiver();}
@@ -455,7 +549,10 @@ async function pickSleeper(leagueId,name,size){
   const roster=((mine&&mine.players)||[]).map(id=>SID[String(id)]).filter(Boolean);
   if(!roster.length)throw new Error('Roster loaded, but none of your players map to our projections yet (deep bench).');
   const taken=new Set();rosters.forEach(r=>(r.players||[]).forEach(id=>{const p=SID[String(id)];if(p)taken.add(p.name);}));
-  saveConn({platform:'Sleeper',team:name,size,roster,rostered:[...taken]});
+  const users=await fetch(`https://api.sleeper.app/v1/league/${leagueId}/users`).then(r=>r.json()).catch(()=>[]);
+  const uname={};(users||[]).forEach(u=>{uname[u.user_id]=(u.metadata&&u.metadata.team_name)||u.display_name||'Team';});
+  const teams=rosters.map(rr=>({name:uname[rr.owner_id]||('Team '+rr.roster_id),mine:rr.owner_id===_slUser,players:(rr.players||[]).map(id=>SID[String(id)]).filter(Boolean).map(p=>p.name)}));
+  saveConn({platform:'Sleeper',team:name,size,roster,rostered:[...taken],teams});
  }catch(err){e.textContent=err.message;}}
 async function doESPN(){
  const lg=document.getElementById('esLg').value.trim();const s2=document.getElementById('esS2').value.trim();const swid=document.getElementById('esSwid').value.trim();
@@ -621,11 +718,156 @@ function generatePlan(){
  const out=document.getElementById('planOut');out.style.display='';out.innerHTML=html+`<button class="cta" style="background:var(--card2);color:var(--dim)" onclick="document.getElementById('planOut').style.display='none'">↺ Change settings</button>`;
 }
 
+/* ---------- SHARED VALUE (board = projected season points) ---------- */
+let VALMAP=null;
+function valMap(){if(VALMAP)return VALMAP;VALMAP={};
+ DRAFT.forEach(p=>{VALMAP[nrm(p.name)]={v:+p.pts||0,pos:p.pos,pr:p.pr||'',rk:p.rk,name:p.name};});
+ WEEK.forEach(p=>{const k=nrm(p.name);if(!VALMAP[k])VALMAP[k]={v:Math.round((p.roll||p.proj||0)*16),pos:p.pos,pr:'',rk:p.rk||999,name:p.name};});
+ return VALMAP;}
+function pv(name){return valMap()[nrm(name)]||null;}
+
+/* ---------- TRADE ANALYZER ---------- */
+let tGive=[],tGet=[],tSide='give';
+function tSetSide(s){tSide=s;document.getElementById('tSideGive').classList.toggle('on',s==='give');document.getElementById('tSideGet').classList.toggle('on',s==='get');}
+function tSum(arr){return arr.reduce((s,n)=>s+((pv(n)||{}).v||0),0);}
+function renderTrade(){tRenderLists();tSearch();tVerdict();}
+function tRenderLists(){
+ const g=document.getElementById('tGiveList'),r=document.getElementById('tGetList');
+ const tpl=(name,side)=>{const p=pv(name)||{name,pos:'',pr:'',v:0};return `<div class="tchip">${p.pos?chip(p.pos):''}<div style="min-width:0"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</div><div class="mini" style="font-weight:700">${p.pos}${p.pr} · ${Math.round(p.v)} val</div></div><span class="x" onclick="tRemove('${side}','${name.replace(/'/g,"\\'")}')">✕</span></div>`;};
+ g.innerHTML=tGive.map(n=>tpl(n,'give')).join('')||'<div class="mini" style="padding:6px">nobody yet</div>';
+ r.innerHTML=tGet.map(n=>tpl(n,'get')).join('')||'<div class="mini" style="padding:6px">nobody yet</div>';
+ document.getElementById('tGiveTot').textContent=tGive.length?Math.round(tSum(tGive))+' val':'';
+ document.getElementById('tGetTot').textContent=tGet.length?Math.round(tSum(tGet))+' val':'';
+}
+function tAdd(name){const arr=tSide==='give'?tGive:tGet;if(!tGive.includes(name)&&!tGet.includes(name))arr.push(name);document.getElementById('tQ').value='';tRenderLists();tSearch();tVerdict();}
+function tRemove(side,name){if(side==='give')tGive=tGive.filter(x=>x!==name);else tGet=tGet.filter(x=>x!==name);tRenderLists();tSearch();tVerdict();}
+function tSearch(){
+ const q=(document.getElementById('tQ').value||'').toLowerCase();const res=document.getElementById('tResults');
+ if(!q){res.innerHTML='';return;}
+ const used=new Set([...tGive,...tGet].map(nrm));
+ const hits=DRAFT.filter(p=>p.name.toLowerCase().includes(q)&&!used.has(nrm(p.name))).slice(0,7);
+ res.innerHTML=hits.map(p=>`<div class="row" style="padding:9px 12px;cursor:pointer" onclick="tAdd('${p.name.replace(/'/g,"\\'")}')">${chip(p.pos)}<div class="pn"><div class="n" style="font-size:14px">${esc(p.name)}</div><div class="m">${p.team} · ${p.pos}${p.pr} · ${Math.round(p.pts)} val</div></div><div class="proj" style="color:var(--primary2)">+</div></div>`).join('');
+}
+function tVerdict(){
+ const vd=document.getElementById('tradeVerdict'),bd=document.getElementById('tBreakdown');
+ const g=tSum(tGive),r=tSum(tGet);
+ if(!tGive.length||!tGet.length){vd.innerHTML='';bd.innerHTML='<div class="note" style="margin-top:12px">Add at least one player to each side. We value players by projected season points on our board — the same engine behind the rankings — and tell you which side wins the deal.</div>';return;}
+ const diff=r-g,base=(g+r)/2||1,pct=diff/base*100;
+ let cls,tag;if(pct>=8){cls='win';tag='YOU WIN THIS';}else if(pct<=-8){cls='lose';tag='YOU LOSE THIS';}else{cls='fair';tag='FAIR DEAL';}
+ const conf=Math.min(99,Math.round(50+Math.abs(pct)*2.2));
+ const gp=Math.round(g/(g+r)*100),rp=100-gp;
+ vd.innerHTML=`<div class="verdict ${cls}"><div class="vg">${tag}</div><div class="vs">net ${diff>=0?'+':''}${Math.round(diff)} value to you · ${conf}% confidence</div><div class="fair-bar"><i style="width:${gp}%;background:var(--neg)"></i><i style="width:${rp}%;background:var(--pos)"></i></div><div class="vs">You give ${Math.round(g)} &nbsp;·&nbsp; You get ${Math.round(r)}</div></div>`;
+ const line=n=>{const p=pv(n)||{name:n,pos:'',pr:'',v:0,rk:999};return `<div class="row" style="padding:8px 12px">${p.pos?chip(p.pos):''}<div class="pn"><div class="n" style="font-size:14px">${esc(p.name)}</div><div class="m">${p.pos}${p.pr}${p.rk&&p.rk<900?' · our #'+p.rk:''}</div></div><div class="proj">${Math.round(p.v)}<small>val</small></div></div>`;};
+ bd.innerHTML=`<div class="card" style="margin-top:12px"><div class="ct">Give</div>${tGive.map(line).join('')}</div><div class="card"><div class="ct">Get</div>${tGet.map(line).join('')}</div><div class="note">${cls==='fair'?'Close enough that need should decide it — take the side that fills a hole in your starting lineup.':cls==='win'?'Our board says you come out ahead. Still weigh position: two good players for one great one only helps if you can start them all.':'Our board says you are paying up. Fine if the guy you are getting fills a real need or is a league-winner — otherwise push back.'} Values are projected season points on the Throw in the Towel board (redraft).</div>`;
+}
+
+/* ---------- CHANCE TO WIN ---------- */
+function erf(x){const t=1/(1+0.3275911*Math.abs(x));const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return x>=0?y:-y;}
+function normCdf(z){return 0.5*(1+erf(z/Math.SQRT2));}
+function bestLineupTotal(names){const roster=(names||[]).map(n=>WEEK.find(p=>nrm(p.name)===nrm(n))).filter(Boolean);return roster.length?optimize(roster).total:0;}
+function renderOdds(){
+ const body=document.getElementById('oddsBody'),sub=document.getElementById('oddsSub');
+ const teams=(CONN&&CONN.teams&&CONN.teams.length)?CONN.teams:null;
+ if(!teams){sub.textContent='Connect a Sleeper or ESPN league to simulate your odds.';
+  body.innerHTML=`<div class="note">Your title odds need every team's roster, so connect your league on the <b>Team</b> tab — Sleeper and ESPN pull the whole league automatically. Then we simulate the rest of the season from each roster's strength.</div>`;return;}
+ const strengths=teams.map(t=>({name:t.name,mine:!!t.mine,s:bestLineupTotal(t.players)}));
+ const valid=strengths.filter(t=>t.s>0);if(!valid.length){body.innerHTML='<div class="note">Couldn\'t map enough of your league\'s rosters to our projections yet.</div>';return;}
+ const mean=valid.reduce((a,b)=>a+b.s,0)/valid.length;const me=strengths.find(t=>t.mine)||strengths[0];const SD=24;
+ const wk=normCdf((me.s-mean)/(Math.SQRT2*SD));
+ const sim=simSeason(strengths,SD);
+ sub.textContent=`${esc(CONN.team)} · ${teams.length}-team — simulated ${sim.N.toLocaleString()}× from roster strength.`;
+ body.innerHTML=`<div class="odds-hero"><div class="oc"><div class="n">${Math.round(sim.mePlayoff*100)}%</div><div class="l">Make playoffs</div><div class="obar"><i style="width:${Math.round(sim.mePlayoff*100)}%"></i></div></div><div class="oc"><div class="n">${Math.round(sim.meTitle*100)}%</div><div class="l">Win the title</div><div class="obar"><i style="width:${Math.max(2,Math.round(sim.meTitle*100))}%"></i></div></div></div>`+
+  `<div class="card"><div class="ct"><span>This week</span></div><div class="row"><div class="pn"><div class="n">${Math.round(wk*100)}% to win vs an average team</div><div class="m">you project ${Math.round(me.s)} · league average ${Math.round(mean)}</div></div><div class="proj">${me.s>=mean?'▲':'▼'}<small>${me.s>=mean?'favored':'underdog'}</small></div></div></div>`+
+  `<div class="card"><div class="ct"><span>Title odds — full league</span><span class="mini">by roster strength</span></div>`+
+  sim.table.map((t,i)=>`<div class="row"><div class="slot">${i+1}</div><div class="pn"><div class="n" style="font-size:14px">${esc(t.name)}${t.mine?' <span class="pill hi" style="color:var(--primary2)">YOU</span>':''}</div><div class="m">proj ${Math.round(t.s)} · playoffs ${Math.round(t.playoff*100)}%</div></div><div class="proj">${(t.title*100).toFixed(t.title>=0.1?0:1)}%<small>title</small></div></div>`).join('')+`</div>`+
+  `<div class="note">How: we build each team's best legal lineup from our weekly projections, add realistic week-to-week variance (±${SD} pts), and simulate the rest of the year ${sim.N.toLocaleString()} times — random matchups, top ${sim.playoffN} make the playoffs, single-elimination from there. It reads roster strength, not your actual schedule or record, so treat it as a strength-of-roster forecast.</div>`;
+}
+function simSeason(strengths,SD){
+ const valid=strengths.map(t=>({name:t.name,mine:t.mine,s:t.s>0?t.s:1}));
+ const T=valid.length,N=1200,weeksLeft=Math.max(3,14-((META.week||1)-1));
+ const playoffN=Math.min(6,Math.max(4,Math.floor(T/2)));
+ const gauss=()=>{let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);};
+ const title=new Array(T).fill(0),playoff=new Array(T).fill(0);
+ for(let n=0;n<N;n++){
+  const wins=new Array(T).fill(0),pf=new Array(T).fill(0);
+  for(let w=0;w<weeksLeft;w++){
+   const idx=[...Array(T).keys()];
+   for(let i=idx.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const tmp=idx[i];idx[i]=idx[j];idx[j]=tmp;}
+   for(let p=0;p+1<idx.length;p+=2){const a=idx[p],b=idx[p+1];const sa=valid[a].s+gauss()*SD,sb=valid[b].s+gauss()*SD;pf[a]+=sa;pf[b]+=sb;if(sa>=sb)wins[a]++;else wins[b]++;}
+  }
+  const seed=[...Array(T).keys()].sort((a,b)=>wins[b]-wins[a]||pf[b]-pf[a]);
+  let field=seed.slice(0,playoffN);field.forEach(i=>playoff[i]++);
+  while(field.length>1){
+   field.sort((a,b)=>wins[b]-wins[a]||pf[b]-pf[a]);const next=[];
+   for(let i=0,j=field.length-1;i<=j;i++,j--){if(i===j){next.push(field[i]);break;}const a=field[i],b=field[j];const sa=valid[a].s+gauss()*SD,sb=valid[b].s+gauss()*SD;next.push(sa>=sb?a:b);}
+   field=next;
+  }
+  if(field.length)title[field[0]]++;
+ }
+ const table=valid.map((t,i)=>({name:t.name,mine:t.mine,s:t.s,title:title[i]/N,playoff:playoff[i]/N})).sort((a,b)=>b.title-a.title||b.s-a.s);
+ const meI=valid.findIndex(t=>t.mine);
+ return {N,playoffN,table,meTitle:meI>=0?title[meI]/N:0,mePlayoff:meI>=0?playoff[meI]/N:0};
+}
+
+/* ---------- CHAT ASSISTANT (grounded) ---------- */
+let chatStarted=false;
+const CHIPS=["Who should I start?","Best waivers right now","My playoff odds","Best RB on the board"];
+function chatInit(){
+ document.getElementById('chatChips').innerHTML=CHIPS.map(c=>`<div class="qchip" onclick="chatQuick('${c.replace(/'/g,"\\'")}')">${c}</div>`).join('');
+ if(!chatStarted){chatStarted=true;chatPush('ai',chatGreeting());}
+}
+function chatGreeting(){const conn=CONN&&CONN.players;return `Hey — I'm the Towel. Ask about your <b>lineup</b>, the <b>waiver wire</b>, a <b>trade</b>, or your <b>odds</b>. ${conn?'I have '+esc(CONN.team)+' loaded.':'Connect your league on the Team tab and I will use your real roster.'} Every answer comes from our numbers.`;}
+function chatPush(who,html){const log=document.getElementById('chatLog');const d=document.createElement('div');d.className='bub '+who;d.innerHTML=html;log.appendChild(d);log.scrollTop=log.scrollHeight;}
+function chatQuick(q){document.getElementById('chatQ').value=q;chatSend();}
+function chatSend(){const inp=document.getElementById('chatQ');const q=(inp.value||'').trim();if(!q)return;chatPush('me',esc(q));inp.value='';setTimeout(()=>chatPush('ai',chatAnswer(q)),120);}
+function findPlayers(q){const toks=q.toLowerCase().replace(/[^a-z ]/g,' ');const hits=[],seen=new Set();
+ DRAFT.concat(WEEK).forEach(p=>{const k=nrm(p.name);if(seen.has(k))return;const parts=p.name.toLowerCase().split(' ');
+  if(toks.includes(p.name.toLowerCase())||parts.some(x=>{x=x.replace(/[^a-z]/g,'');return x.length>=4&&new RegExp('\\b'+x+'\\b').test(toks);})){seen.add(k);hits.push(p);}});
+ return hits.slice(0,4);}
+function wpv(name){return WEEK.find(p=>nrm(p.name)===nrm(name));}
+function chatAnswer(q){
+ const s=q.toLowerCase();const players=findPlayers(q);
+ if(/\btrade\b|swap|deal for/.test(s)){
+  if(players.length>=2){const a=pv(players[0].name),b=pv(players[1].name);
+   if(a&&b){const diff=b.v-a.v;const who=Math.abs(diff)<Math.max(a.v,b.v)*0.08?'fair':diff>0?'good for you':'a slight overpay';
+    return `On our board, <b>${esc(a.name)}</b> is worth ${Math.round(a.v)} and <b>${esc(b.name)}</b> ${Math.round(b.v)} (projected season points). That's <b>${who}</b>${who==='fair'?' — let need break the tie.':'.'} Build the full deal on the <b>Trade</b> tab for both-sides math.`;}}
+  return `Open the <b>Trade</b> tab and drop players on each side — I price both and call it. Or name two players here ("trade Hubbard for Evans") and I'll quick-check them.`;}
+ if(/\bodds?\b|playoff|chance to win|title|championship|make the/.test(s)){
+  if(!(CONN&&CONN.teams&&CONN.teams.length))return `I need your whole league for that. Connect Sleeper or ESPN on the <b>Team</b> tab, then open <b>Odds</b> — I simulate the season 1,200× from every roster's strength.`;
+  showScreen('odds');return `Pulled it up on the <b>Odds</b> tab — your make-playoffs and title numbers are up top, simulated from every team's roster strength.`;}
+ if(/waiver|pick ?up|\badd\b|free agent|streamer|available/.test(s)){
+  const pos=(s.match(/\b(qb|rb|wr|te)\b/)||[])[1];const P=pos?pos.toUpperCase():null;
+  const taken=(CONN&&CONN.rostered&&CONN.rostered.length)?new Set(CONN.rostered):null;
+  const list=WEEK.filter(p=>(!P||p.pos===P)&&(taken?!taken.has(p.name):p.own<75)).sort((a,b)=>b.proj-a.proj).slice(0,5);
+  if(!list.length)return `Nothing jumps out at ${P||'that spot'} right now.`;
+  return `Top ${P||''} pickups${taken?' free in your league':''} by our model:<br>`+list.map((p,i)=>`${i+1}. <b>${esc(p.name)}</b> ${p.pos} · ${p.proj} proj${(p.form&&p.gp)?' · '+p.form+' last-3':''}${p.own!=null?' · '+p.own+'% rostered':''}`).join('<br>');}
+ if(/start|sit|line ?up|bench|play this week/.test(s)){
+  if(players.length>=2){const a=wpv(players[0].name),b=wpv(players[1].name);
+   if(a&&b){const win=a.proj>=b.proj?a:b,lose=a.proj>=b.proj?b:a;
+    return `Start <b>${esc(win.name)}</b> (${win.proj} proj, ${win.opp}) over <b>${esc(lose.name)}</b> (${lose.proj}, ${lose.opp}). ${(win.proj-lose.proj)<2?'Close one — lean matchup if unsure.':'Clear edge this week.'}`;}}
+  if(players.length===1){const a=wpv(players[0].name);if(a)return `<b>${esc(a.name)}</b> projects ${a.proj} this week vs ${a.opp} (${a.matchup} matchup)${a.inj?' — status '+a.inj:''}. ${a.proj>=11?'Startable.':a.proj>=8?'Flex-worthy.':'Bench unless thin.'}`;}
+  if(CONN&&CONN.players&&LINEUP.starters){return `Your optimal lineup (${LINEUP.total} proj) is on the <b>Week</b> tab. Must-start: <b>${esc([...LINEUP.starters].sort((x,y)=>y.proj-x.proj)[0].name)}</b>. Name two players and I'll pick between them.`;}
+  return `Connect your league on the <b>Team</b> tab and I'll set your whole lineup — or name two players ("start X or Y?") and I'll choose.`;}
+ const bp=s.match(/best (qb|rb|wr|te)/);
+ if(bp){const P=bp[1].toUpperCase();const top=DRAFT.filter(p=>p.pos===P).slice(0,5);return `Top ${P} on our board:<br>`+top.map((p,i)=>`${i+1}. <b>${esc(p.name)}</b> · ${Math.round(p.pts)} pts`).join('<br>');}
+ if(players.length){const w=wpv(players[0].name);
+  if(w)return `<b>${esc(w.name)}</b> — ${w.pos} ${w.team}. This week: <b>${w.proj} proj</b> vs ${w.opp} (${w.matchup})${(w.form&&w.gp)?', '+w.form+' over his last 3':''}${w.own!=null?', '+w.own+'% rostered':''}.${w.why?' '+esc(w.why)+'.':''}`;
+  const d=pv(players[0].name);if(d)return `<b>${esc(d.name)}</b> — ${d.pos}${d.pr}, our #${d.rk} overall (${Math.round(d.v)} projected season pts).`;}
+ return `I can help with <b>start/sit</b> ("start Coker or Vele?"), the <b>waiver wire</b> ("best WR to add"), <b>trades</b> ("trade X for Y"), and your <b>odds</b>. What do you need?`;
+}
+
 /* ---------- NAV ---------- */
-document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
- document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('on',x==b));
- document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
- document.getElementById('s-'+b.dataset.s).classList.add('on');window.scrollTo(0,0);
-});
+function showScreen(s,navKey){
+ document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
+ const el=document.getElementById('s-'+s);if(el)el.classList.add('on');
+ document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('on',x.dataset.s===(navKey||s)));
+ if(['draft','plan','mock'].includes(s))document.querySelectorAll('.subtabs .pf').forEach(x=>x.classList.toggle('on',x.dataset.v===s));
+ window.scrollTo(0,0);
+ if(s==='trade')renderTrade();
+ if(s==='odds')renderOdds();
+ if(s==='chat')chatInit();
+}
+function draftView(v){showScreen(v,'draft');}
+document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;showScreen(b.dataset.s);});
 </script>
 </body></html>
