@@ -48,7 +48,7 @@ export default {
       const season = p.get("season") || "2026";
       const s2 = p.get("s2");
       const swid = p.get("swid");
-      const espn = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/" + season + "/segments/0/leagues/" + leagueId + "?view=mRoster&view=mTeam";
+      const espn = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/" + season + "/segments/0/leagues/" + leagueId + "?view=mRoster&view=mTeam&view=mMatchup&view=mSettings";
       const headers = { accept: "application/json", "user-agent": "Mozilla/5.0" };
       if (s2 && swid) {
         const sw = swid.charAt(0) === "{" ? swid : "{" + swid + "}";
