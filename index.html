@@ -376,8 +376,12 @@ function pickESPN(teamId){
  const roster=espnIds(team).map(id=>EID[String(id)]).filter(Boolean);
  const taken=new Set();data.teams.forEach(t=>espnIds(t).forEach(id=>{const p=EID[String(id)];if(p)taken.add(p.name);}));
  if(!roster.length){document.getElementById('connErr').textContent='Team loaded, but no players mapped to our projections yet.';return;}
- const teams=data.teams.map(t=>({name:espnTeamName(t),mine:String(t.id)===String(teamId),players:espnIds(t).map(id=>EID[String(id)]).filter(Boolean).map(p=>p.name)}));
- saveConn({platform:'ESPN',team:espnTeamName(team),size:data.teams.length,roster,rostered:[...taken],teams});
+ const teams=data.teams.map(t=>({id:t.id,name:espnTeamName(t),mine:String(t.id)===String(teamId),players:espnIds(t).map(id=>EID[String(id)]).filter(Boolean).map(p=>p.name)}));
+ const records={};data.teams.forEach(t=>{const o=(t.record&&t.record.overall)||{};records[t.id]={w:o.wins||0,l:o.losses||0,pf:o.pointsFor||0};});
+ let playoffStart=15;if(data.settings&&data.settings.scheduleSettings&&data.settings.scheduleSettings.matchupPeriodCount)playoffStart=data.settings.scheduleSettings.matchupPeriodCount+1;
+ const cur=META.week||1,schedule=[];
+ (data.schedule||[]).forEach(m=>{const wk=m.matchupPeriodId;if(wk>=cur&&wk<playoffStart&&m.home&&m.away&&m.home.teamId!=null&&m.away.teamId!=null&&(m.winner==null||m.winner==='UNDECIDED'))schedule.push({week:wk,a:m.home.teamId,b:m.away.teamId});});
+ saveConn({platform:'ESPN',team:espnTeamName(team),size:data.teams.length,roster,rostered:[...taken],teams,records,schedule,playoffStart});
 }
 
 // ---- YAHOO (OAuth via worker) ----
@@ -521,7 +525,7 @@ function renderTeam(){
   `<div id="connErr" style="color:var(--neg);font-size:12px;text-align:center"></div>`;
  if(cPlat=='manual')manRender();
 }
-function saveConn(res){const lg={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name),rostered:res.rostered||[],teams:res.teams||[]};
+function saveConn(res){const lg={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name),rostered:res.rostered||[],teams:res.teams||[],records:res.records||null,schedule:res.schedule||null,playoffStart:res.playoffStart||15};
  const i=LEAGUES.findIndex(l=>l.platform===lg.platform&&l.team===lg.team);
  if(i>=0){LEAGUES[i]=lg;ACTIVE=i;}else{LEAGUES.push(lg);ACTIVE=LEAGUES.length-1;}
  CONN=lg;addingLeague=false;saveLeagues();applyConnectedRoster();renderWeek();renderTeam();renderWaiver();}
@@ -551,8 +555,17 @@ async function pickSleeper(leagueId,name,size){
   const taken=new Set();rosters.forEach(r=>(r.players||[]).forEach(id=>{const p=SID[String(id)];if(p)taken.add(p.name);}));
   const users=await fetch(`https://api.sleeper.app/v1/league/${leagueId}/users`).then(r=>r.json()).catch(()=>[]);
   const uname={};(users||[]).forEach(u=>{uname[u.user_id]=(u.metadata&&u.metadata.team_name)||u.display_name||'Team';});
-  const teams=rosters.map(rr=>({name:uname[rr.owner_id]||('Team '+rr.roster_id),mine:rr.owner_id===_slUser,players:(rr.players||[]).map(id=>SID[String(id)]).filter(Boolean).map(p=>p.name)}));
-  saveConn({platform:'Sleeper',team:name,size,roster,rostered:[...taken],teams});
+  const teams=rosters.map(rr=>({id:rr.roster_id,name:uname[rr.owner_id]||('Team '+rr.roster_id),mine:rr.owner_id===_slUser,players:(rr.players||[]).map(id=>SID[String(id)]).filter(Boolean).map(p=>p.name)}));
+  const records={};rosters.forEach(rr=>{const s=rr.settings||{};records[rr.roster_id]={w:s.wins||0,l:s.losses||0,pf:(s.fpts||0)+((s.fpts_decimal||0)/100)};});
+  // real remaining schedule
+  let playoffStart=15;try{const lg=await fetch(`https://api.sleeper.app/v1/league/${leagueId}`).then(r=>r.json());if(lg&&lg.settings&&lg.settings.playoff_week_start)playoffStart=lg.settings.playoff_week_start;}catch(_){}
+  const cur=META.week||1,wks=[];for(let w=cur;w<playoffStart;w++)wks.push(w);
+  const schedule=[];
+  try{const all=await Promise.all(wks.map(w=>fetch(`https://api.sleeper.app/v1/league/${leagueId}/matchups/${w}`).then(r=>r.json()).then(d=>({w,d})).catch(()=>({w,d:null}))));
+   all.forEach(({w,d})=>{if(!Array.isArray(d))return;const bym={};d.forEach(m=>{if(m&&m.matchup_id!=null)(bym[m.matchup_id]=bym[m.matchup_id]||[]).push(m.roster_id);});
+    Object.values(bym).forEach(pair=>{if(pair.length===2)schedule.push({week:w,a:pair[0],b:pair[1]});});});
+  }catch(_){}
+  saveConn({platform:'Sleeper',team:name,size,roster,rostered:[...taken],teams,records,schedule,playoffStart});
  }catch(err){e.textContent=err.message;}}
 async function doESPN(){
  const lg=document.getElementById('esLg').value.trim();const s2=document.getElementById('esS2').value.trim();const swid=document.getElementById('esSwid').value.trim();
@@ -770,17 +783,49 @@ function renderOdds(){
  const teams=(CONN&&CONN.teams&&CONN.teams.length)?CONN.teams:null;
  if(!teams){sub.textContent='Connect a Sleeper or ESPN league to simulate your odds.';
   body.innerHTML=`<div class="note">Your title odds need every team's roster, so connect your league on the <b>Team</b> tab — Sleeper and ESPN pull the whole league automatically. Then we simulate the rest of the season from each roster's strength.</div>`;return;}
- const strengths=teams.map(t=>({name:t.name,mine:!!t.mine,s:bestLineupTotal(t.players)}));
+ const strengths=teams.map(t=>({id:t.id,name:t.name,mine:!!t.mine,s:bestLineupTotal(t.players)}));
  const valid=strengths.filter(t=>t.s>0);if(!valid.length){body.innerHTML='<div class="note">Couldn\'t map enough of your league\'s rosters to our projections yet.</div>';return;}
  const mean=valid.reduce((a,b)=>a+b.s,0)/valid.length;const me=strengths.find(t=>t.mine)||strengths[0];const SD=24;
- const wk=normCdf((me.s-mean)/(Math.SQRT2*SD));
- const sim=simSeason(strengths,SD);
- sub.textContent=`${esc(CONN.team)} · ${teams.length}-team — simulated ${sim.N.toLocaleString()}× from roster strength.`;
+ const real=!!(CONN.schedule&&CONN.schedule.length&&CONN.records);
+ // ---- this-week card: real opponent if we have the schedule, else vs field ----
+ let weeklyCard='';const cur=META.week||1;
+ if(real&&me.id!=null){
+  const g=CONN.schedule.find(x=>x.week===cur&&(x.a===me.id||x.b===me.id));
+  if(g){const opp=strengths.find(t=>t.id===(g.a===me.id?g.b:g.a));
+   if(opp&&opp.s>0){const p=normCdf((me.s-opp.s)/(Math.SQRT2*SD));
+    weeklyCard=`<div class="card"><div class="ct"><span>Week ${cur} · vs ${esc(opp.name)}</span></div><div class="row"><div class="pn"><div class="n">${Math.round(p*100)}% to win</div><div class="m">you project ${Math.round(me.s)} · ${esc(opp.name)} ${Math.round(opp.s)}</div></div><div class="proj">${p>=0.5?'▲':'▼'}<small>${p>=0.5?'favored':'underdog'}</small></div></div></div>`;}}
+ }
+ if(!weeklyCard){const wk=normCdf((me.s-mean)/(Math.SQRT2*SD));
+  weeklyCard=`<div class="card"><div class="ct"><span>This week</span></div><div class="row"><div class="pn"><div class="n">${Math.round(wk*100)}% to win vs an average team</div><div class="m">you project ${Math.round(me.s)} · league average ${Math.round(mean)}</div></div><div class="proj">${me.s>=mean?'▲':'▼'}<small>${me.s>=mean?'favored':'underdog'}</small></div></div></div>`;}
+ const sim=real?simSeasonReal(strengths,SD):simSeason(strengths,SD);
+ sub.textContent=`${esc(CONN.team)} · ${teams.length}-team — ${sim.N.toLocaleString()}× ${real?'over your real remaining schedule':'from roster strength'}.`;
  body.innerHTML=`<div class="odds-hero"><div class="oc"><div class="n">${Math.round(sim.mePlayoff*100)}%</div><div class="l">Make playoffs</div><div class="obar"><i style="width:${Math.round(sim.mePlayoff*100)}%"></i></div></div><div class="oc"><div class="n">${Math.round(sim.meTitle*100)}%</div><div class="l">Win the title</div><div class="obar"><i style="width:${Math.max(2,Math.round(sim.meTitle*100))}%"></i></div></div></div>`+
-  `<div class="card"><div class="ct"><span>This week</span></div><div class="row"><div class="pn"><div class="n">${Math.round(wk*100)}% to win vs an average team</div><div class="m">you project ${Math.round(me.s)} · league average ${Math.round(mean)}</div></div><div class="proj">${me.s>=mean?'▲':'▼'}<small>${me.s>=mean?'favored':'underdog'}</small></div></div></div>`+
-  `<div class="card"><div class="ct"><span>Title odds — full league</span><span class="mini">by roster strength</span></div>`+
-  sim.table.map((t,i)=>`<div class="row"><div class="slot">${i+1}</div><div class="pn"><div class="n" style="font-size:14px">${esc(t.name)}${t.mine?' <span class="pill hi" style="color:var(--primary2)">YOU</span>':''}</div><div class="m">proj ${Math.round(t.s)} · playoffs ${Math.round(t.playoff*100)}%</div></div><div class="proj">${(t.title*100).toFixed(t.title>=0.1?0:1)}%<small>title</small></div></div>`).join('')+`</div>`+
-  `<div class="note">How: we build each team's best legal lineup from our weekly projections, add realistic week-to-week variance (±${SD} pts), and simulate the rest of the year ${sim.N.toLocaleString()} times — random matchups, top ${sim.playoffN} make the playoffs, single-elimination from there. It reads roster strength, not your actual schedule or record, so treat it as a strength-of-roster forecast.</div>`;
+  weeklyCard+
+  `<div class="card"><div class="ct"><span>Title odds — full league</span><span class="mini">${real?'schedule + record':'roster strength'}</span></div>`+
+  sim.table.map((t,i)=>`<div class="row"><div class="slot">${i+1}</div><div class="pn"><div class="n" style="font-size:14px">${esc(t.name)}${t.mine?' <span class="pill hi" style="color:var(--primary2)">YOU</span>':''}</div><div class="m">proj ${Math.round(t.s)} · playoffs ${Math.round(t.playoff*100)}%${(t.rec)?' · '+t.rec:''}</div></div><div class="proj">${(t.title*100).toFixed(t.title>=0.1?0:1)}%<small>title</small></div></div>`).join('')+`</div>`+
+  (real
+   ?`<div class="note">How: we build each team's best legal lineup from our weekly projections, add week-to-week variance (±${SD} pts), and play out <b>your league's actual remaining schedule</b> ${sim.N.toLocaleString()} times — starting from everyone's current record — then top ${sim.playoffN} make the playoffs, single-elimination from there.</div>`
+   :`<div class="note">How: best legal lineup per team + week-to-week variance (±${SD} pts), simulated ${sim.N.toLocaleString()}× with random matchups (we couldn't read your real schedule, so this is a strength-of-roster forecast), top ${sim.playoffN} to the playoffs, single-elim.</div>`);
+}
+function simSeasonReal(strengths,SD){
+ const idx={};strengths.forEach((t,i)=>{idx[t.id]=i;});
+ const T=strengths.length,N=1200,rec=CONN.records||{},sched=CONN.schedule||[];
+ const playoffN=Math.min(6,Math.max(4,Math.floor(T/2)));
+ const valid=strengths.filter(t=>t.s>0);const meanS=valid.reduce((a,b)=>a+b.s,0)/(valid.length||1);
+ const S=strengths.map(t=>t.s>0?t.s:meanS);
+ const gauss=()=>{let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);};
+ const title=new Array(T).fill(0),playoff=new Array(T).fill(0);
+ for(let n=0;n<N;n++){
+  const wins=strengths.map(t=>(rec[t.id]&&rec[t.id].w)||0),pf=strengths.map(t=>(rec[t.id]&&rec[t.id].pf)||0);
+  sched.forEach(g=>{const a=idx[g.a],b=idx[g.b];if(a==null||b==null)return;const sa=S[a]+gauss()*SD,sb=S[b]+gauss()*SD;pf[a]+=sa;pf[b]+=sb;if(sa>=sb)wins[a]++;else wins[b]++;});
+  const seed=[...Array(T).keys()].sort((a,b)=>wins[b]-wins[a]||pf[b]-pf[a]);
+  let field=seed.slice(0,playoffN);field.forEach(i=>playoff[i]++);
+  while(field.length>1){field.sort((a,b)=>wins[b]-wins[a]||pf[b]-pf[a]);const next=[];for(let i=0,j=field.length-1;i<=j;i++,j--){if(i===j){next.push(field[i]);break;}const a=field[i],b=field[j];const sa=S[a]+gauss()*SD,sb=S[b]+gauss()*SD;next.push(sa>=sb?a:b);}field=next;}
+  if(field.length)title[field[0]]++;
+ }
+ const table=strengths.map((t,i)=>({name:t.name,mine:t.mine,s:S[i],title:title[i]/N,playoff:playoff[i]/N,rec:rec[t.id]?(rec[t.id].w+'-'+rec[t.id].l):''})).sort((a,b)=>b.title-a.title||b.s-a.s);
+ const meI=strengths.findIndex(t=>t.mine);
+ return {N,playoffN,table,meTitle:meI>=0?title[meI]/N:0,mePlayoff:meI>=0?playoff[meI]/N:0,real:true};
 }
 function simSeason(strengths,SD){
  const valid=strengths.map(t=>({name:t.name,mine:t.mine,s:t.s>0?t.s:1}));
@@ -834,7 +879,7 @@ function chatAnswer(q){
   return `Open the <b>Trade</b> tab and drop players on each side — I price both and call it. Or name two players here ("trade Hubbard for Evans") and I'll quick-check them.`;}
  if(/\bodds?\b|playoff|chance to win|title|championship|make the/.test(s)){
   if(!(CONN&&CONN.teams&&CONN.teams.length))return `I need your whole league for that. Connect Sleeper or ESPN on the <b>Team</b> tab, then open <b>Odds</b> — I simulate the season 1,200× from every roster's strength.`;
-  showScreen('odds');return `Pulled it up on the <b>Odds</b> tab — your make-playoffs and title numbers are up top, simulated from every team's roster strength.`;}
+  showScreen('odds');return `Pulled it up on the <b>Odds</b> tab — make-playoffs and title numbers up top, plus this week's matchup, simulated over your remaining schedule.`;}
  if(/waiver|pick ?up|\badd\b|free agent|streamer|available/.test(s)){
   const pos=(s.match(/\b(qb|rb|wr|te)\b/)||[])[1];const P=pos?pos.toUpperCase():null;
   const taken=(CONN&&CONN.rostered&&CONN.rostered.length)?new Set(CONN.rostered):null;
