@@ -127,8 +127,9 @@ def main():
             observed=0.55*std+0.45*l3v
             b=base.get(norm(nm)); prior=float(b["base"]) if b is not None else REPL.get(pos,5.0); K=5.0 if b is not None else 3.0
             rolling=(K*prior+gp*observed)/(K+gp)              # <-- shrink prior toward observed as gp grows
+            spark=[round(float(x),1) for x in grp.sort_values("week").fantasy_points_ppr]
             rows.append(dict(pid=pid,name=nm,pos=pos,team=team,roll=rolling,std=std,l3=l3v,gp=gp,
-                             tgt=float(grp.target_share.mean() or 0),base=prior,
+                             tgt=float(grp.target_share.mean() or 0),base=prior,spark=spark,
                              rk=(int(b["rk"]) if b is not None else 999),pr=(b["pr"] if b is not None else "")))
             if gp>=2 and model is not None:                  # ML needs >=2 games (as trained)
                 FEAT[pid]=dict(l4=float(fp.tail(4).mean()),l1=float(fp.iloc[-1]),s2d=float(fp.mean()),gp=gp,
@@ -138,7 +139,7 @@ def main():
     haveN={norm(x["name"]) for x in rows}
     for k,b in base.items():
         if k not in haveN:
-            rows.append(dict(pid=None,name=b["name"],pos=b["pos"],team=fix(str(b["team"])),roll=float(b["base"]),std=float(b["base"]),l3=float(b["base"]),gp=0,tgt=0,base=float(b["base"]),rk=int(b["rk"]),pr=b["pr"]))
+            rows.append(dict(pid=None,name=b["name"],pos=b["pos"],team=fix(str(b["team"])),roll=float(b["base"]),std=float(b["base"]),l3=float(b["base"]),gp=0,tgt=0,base=float(b["base"]),spark=[],rk=int(b["rk"]),pr=b["pr"]))
     lg={p:np.mean([v for kk,v in dvp.items() if kk.endswith("|"+p)] or [10]) for p in ["QB","RB","WR","TE"]}
 
     week=[]
@@ -186,7 +187,7 @@ def main():
                      "roll":round(b,1),"ml":(round(mlp,1) if mlp is not None else None),"form":round(r["l3"],1),"trend":trend,"gp":r["gp"],
                      "matchup":("good" if proj>b*1.03 else "tough" if proj<b*0.97 else "even"),
                      "delta":round(proj-r["base"],1),"own":own,"chg":chg,"inj":inj.get(norm(r["name"]),""),
-                     "why":"; ".join(why),"rk":r["rk"],"pr":r["pr"]})
+                     "spark":r.get("spark",[]),"why":"; ".join(why),"rk":r["rk"],"pr":r["pr"]})
     week=sorted(week,key=lambda x:-x["proj"])[:450]
     json.dump(week,open(os.path.join(DATA,"week.json"),"w"))
     hyb="hybrid ML+shrinkage" if model is not None else "shrinkage"
