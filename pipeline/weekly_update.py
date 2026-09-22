@@ -76,9 +76,14 @@ def current_week(games):
 
 def injuries(wk):
     try:
-        inj=getcsv(f"{NFV}/injuries/injuries_{SEASON}.csv"); inj=inj[inj.week==wk]
+        inj=getcsv(f"{NFV}/injuries/injuries_{SEASON}.csv")
+        cur=inj[inj.week==wk]
+        rep=cur[cur.report_status.isin(["Out","Doubtful","Questionable"])]
+        if not len(rep):                                    # current-week report not published yet
+            av=inj[inj.week<wk].week
+            if len(av): cur=inj[inj.week==int(av.max())]     # carry forward the latest available report
         m={"Out":"O","Doubtful":"D","Questionable":"Q"}
-        return {norm(r.full_name):m.get(r.report_status,"") for _,r in inj.iterrows() if r.report_status in m}
+        return {norm(r.full_name):m.get(r.report_status,"") for _,r in cur.iterrows() if r.report_status in m}
     except Exception: return {}
 
 def main():
@@ -188,6 +193,38 @@ def main():
                      "matchup":("good" if proj>b*1.03 else "tough" if proj<b*0.97 else "even"),
                      "delta":round(proj-r["base"],1),"own":own,"chg":chg,"inj":inj.get(norm(r["name"]),""),
                      "spark":r.get("spark",[]),"why":"; ".join(why),"rk":r["rk"],"pr":r["pr"]})
+    # ---- VACATED OPPORTUNITY: injured starter -> next man up gets the touches ----
+    try:
+        dc=getcsv(f"{NFV}/depth_charts/depth_charts_{SEASON}.csv")
+        dc=dc[(dc.dt==dc.dt.max())&(dc.pos_abb.isin(["QB","RB","WR","TE"]))].copy()
+        dc["k"]=dc.player_name.apply(norm)
+        depth={}
+        for (tm,pos),gg in dc.sort_values("pos_rank").groupby(["team","pos_abb"]):
+            depth[(fix(str(tm)),pos)]=list(gg.k)
+    except Exception as e:
+        depth={}; print("[roll] depth charts unavailable:",e)
+    ALPHA={"RB":0.75,"WR":0.30,"TE":0.55,"QB":0.85}   # share of the vacated role the next man inherits
+    byk={norm(w["name"]):w for w in week}; bumped=0
+    for w in week:
+        st=w.get("inj")
+        if st not in ("O","D"): continue
+        vac=w.get("roll") or w.get("base") or 0
+        if vac<6: continue                                   # only a real starter's role is worth redistributing
+        order=depth.get((w["team"],w["pos"]),[]); me=norm(w["name"])
+        if me not in order: continue
+        for nxt in order[order.index(me)+1:]:
+            b=byk.get(nxt)
+            if not b or b.get("inj")=="O": continue          # skip a backup who is also out
+            a=ALPHA.get(w["pos"],0.5)*(1.0 if st=="O" else 0.5)   # Doubtful = half the bump
+            newp=min(round(b["proj"]+a*vac,1), max(b["proj"], round(vac*0.95,1)))
+            up=round(newp-b["proj"],1)
+            if up>0.3:
+                b["oppUp"]=up; b["oppFrom"]=w["name"]; b["proj"]=newp
+                b["delta"]=round(newp-b["base"],1); b["matchup"]="good"
+                b["why"]=("▲ "+w["name"].split()[-1]+" out — inherits touches")+("; "+b["why"] if b["why"] else "")
+                bumped+=1
+            break
+    print(f"[roll] vacated-opportunity bumps: {bumped}")
     week=sorted(week,key=lambda x:-x["proj"])[:450]
     json.dump(week,open(os.path.join(DATA,"week.json"),"w"))
     hyb="hybrid ML+shrinkage" if model is not None else "shrinkage"
