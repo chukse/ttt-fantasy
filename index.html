@@ -2,6 +2,8 @@
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>Throw in the Towel — Fantasy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
  --bg:#0A0708;--card:#151011;--card2:#1F1719;--line:#2C2124;
@@ -135,6 +137,18 @@ h2{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px}
 .tk .px{color:var(--dim)}
 .tk .up{color:var(--pos)}.tk .dn{color:var(--neg)}.tk .fl{color:var(--dim)}
 .spark{vertical-align:middle;flex:none}
+/* ---- fintech terminal typography + motion ---- */
+h2,.brand{font-family:'Space Grotesk',-apple-system,BlinkMacSystemFont,sans-serif}
+.big,.oc .n,.proj,.tk,.own b,.mvd,.verdict .vg,.slot,.wk,.hero .lbl,.mini{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+.big,.oc .n{letter-spacing:-1px}
+.hero .lbl,.oc .l,.ct{font-family:'JetBrains Mono',ui-monospace,monospace}
+.tk-live{position:absolute;left:0;top:0;bottom:0;display:flex;align-items:center;gap:5px;padding:0 11px;background:#0d0809;border-right:1px solid var(--line);font:800 10px/1 'JetBrains Mono',monospace;letter-spacing:1.5px;color:var(--neg);z-index:2}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--neg);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(225,29,42,.55)}50%{opacity:.35;box-shadow:0 0 0 5px rgba(225,29,42,0)}}
+.tk .pct{font-size:10px;opacity:.8}
+@keyframes flashUp{0%{background:rgba(52,211,153,.28)}100%{background:transparent}}
+@keyframes flashDn{0%{background:rgba(255,90,106,.28)}100%{background:transparent}}
+.flash-up{animation:flashUp .9s ease-out}.flash-dn{animation:flashDn .9s ease-out}
 .mv-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 .mv-col h4{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:2px 2px 8px}
 .mv-col.up h4{color:var(--pos)}.mv-col.dn h4{color:var(--neg)}
@@ -315,10 +329,10 @@ function tkSym(name){return (String(name).split(' ').pop()||name).toUpperCase().
 function renderTicker(){
  const el=document.getElementById('ticker');if(!el||!WEEK.length)return;
  const top=[...WEEK].filter(p=>p.inj!=='O').sort((a,b)=>b.proj-a.proj).slice(0,50);
- const item=p=>{const ch=p.delta||0;const cls=ch>0?'up':ch<0?'dn':'fl';const ar=ch>0?'▲':ch<0?'▼':'·';
-  return `<span class="tk" onclick="tickerTap('${(p.name||'').replace(/'/g,"\\'")}')"><span class="sym">${esc(tkSym(p.name))}</span><span class="px">${p.proj}</span><span class="${cls}">${ar}${ch>0?'+':''}${ch}</span></span>`;};
+ const item=p=>{const ch=p.delta||0;const pct=p.base?Math.round(ch/p.base*100):0;const cls=ch>0?'up':ch<0?'dn':'fl';const ar=ch>0?'▲':ch<0?'▼':'·';
+  return `<span class="tk" onclick="tickerTap('${(p.name||'').replace(/'/g,"\\'")}')"><span class="sym">${esc(tkSym(p.name))}</span><span class="px">${p.proj}</span><span class="${cls}">${ar}${ch>0?'+':''}${ch} <span class="pct">${pct>0?'+':''}${pct}%</span></span></span>`;};
  const html=top.map(item).join('');
- el.innerHTML=`<div class="ticker-track">${html}${html}</div>`;
+ el.innerHTML=`<div class="tk-live"><span class="live-dot"></span>LIVE</div><div class="ticker-track">${html}${html}</div>`;
 }
 function tickerTap(name){showScreen('chat');const q=document.getElementById('chatQ');if(q){q.value=name;chatSend();}}
 function renderMovers(){
@@ -326,7 +340,7 @@ function renderMovers(){
  const pool=WEEK.filter(p=>(p.gp||0)>=1&&p.delta!=null&&p.inj!=='O');
  const up=[...pool].sort((a,b)=>b.delta-a.delta).slice(0,5);
  const dn=[...pool].sort((a,b)=>a.delta-b.delta).slice(0,5);
- const row=p=>`<div class="mv">${chip(p.pos)}<div class="mvn">${esc(p.name)}</div>${sparkSVG(p.spark,34,16)}<div class="mvd" style="color:var(--${p.delta>=0?'pos':'neg'})">${p.delta>0?'+':''}${p.delta}</div></div>`;
+ const row=p=>`<div class="mv ${p.delta>=0?'flash-up':'flash-dn'}">${chip(p.pos)}<div class="mvn">${esc(p.name)}</div>${sparkSVG(p.spark,34,16)}<div class="mvd" style="color:var(--${p.delta>=0?'pos':'neg'})">${p.delta>0?'+':''}${p.delta}</div></div>`;
  el.innerHTML=`<div class="mv-col up"><h4>▲ Rising</h4>${up.map(row).join('')||'<div class="mini" style="padding:6px">—</div>'}</div><div class="mv-col dn"><h4>▼ Falling</h4>${dn.map(row).join('')||'<div class="mini" style="padding:6px">—</div>'}</div>`;
 }
 
