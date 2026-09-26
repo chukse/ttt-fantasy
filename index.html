@@ -263,6 +263,32 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 .call.sit{border:1px solid rgba(255,59,71,.5)}
 .note{border-left:1px solid var(--line)}
 @media (prefers-reduced-motion:reduce){.ticker-track,.flash-up,.flash-dn{animation:none}}
+/* ===== DESKTOP: sidebar rail + full-width header + fluid content ===== */
+@media (min-width:920px){
+ body{max-width:none;margin:0;padding:0 0 0 232px}
+ /* bottom tab bar becomes a left rail */
+ .nav{top:0;bottom:0;left:0;right:auto;width:232px;flex-direction:column;justify-content:flex-start;align-items:stretch;gap:3px;padding:64px 14px 18px;border-top:none;border-right:1px solid var(--line);background:#0A0B0D}
+ .nav button{flex:none;flex-direction:row;justify-content:flex-start;gap:13px;font-size:13px;letter-spacing:.2px;text-transform:none;padding:11px 13px;border-radius:8px;color:var(--dim)}
+ .nav button .ic-svg{width:19px;height:19px}
+ .nav button:hover{background:rgba(255,255,255,.03);color:var(--ink)}
+ .nav button.on{color:var(--red);background:rgba(255,59,71,.10)}
+ /* brand mark pinned in the rail head */
+ .nav::before{content:"THROW IN THE TOWEL";position:absolute;top:20px;left:16px;right:14px;font-family:var(--ui);font-weight:800;font-size:12px;letter-spacing:.4px;color:var(--ink);line-height:1.3}
+ /* header + ticker span the content area to the right of the rail */
+ .top{padding:15px 30px 13px}
+ .top .brand{display:none}
+ .ticker{top:0}
+ /* comfortable operating width; wide holdings rows read like a terminal table */
+ .screen{max-width:960px;margin:0 auto;padding:26px 30px 56px}
+ .hero{padding:26px 26px}
+ .hero .big{font-size:60px}
+ /* the naturally-parallel blocks breathe on desktop */
+ .mv-grid,.calls,.tside,.odds-hero{gap:16px}
+ .chat-wrap{max-width:760px;margin:0 auto}
+}
+@media (min-width:1500px){
+ .screen{max-width:1040px}
+}
 </style></head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
