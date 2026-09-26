@@ -251,6 +251,8 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 @keyframes flashUp{0%{background:rgba(36,208,138,.22)}100%{background:var(--panel)}}
 @keyframes flashDn{0%{background:rgba(255,59,71,.22)}100%{background:var(--panel)}}
 .flash-up{animation:flashUp 1s ease-out}.flash-dn{animation:flashDn 1s ease-out}
+.hero-chg{font-family:var(--mono);font-size:14px;font-weight:700;margin:2px 0 5px;display:flex;align-items:baseline;gap:8px}
+.hero-chg span{color:var(--dim);font-size:11px;font-weight:500;letter-spacing:.3px}
 /* --- readability floor, de-slop, a11y --- */
 .badge,.hero .opt,.nav button,.bc .l,.bc .x,.slot{font-size:11px;letter-spacing:.4px}
 .ct,.call .h,.tbox h3,.hero .lbl,.oc .l,.mv-col h3,.mini{font-size:12px}
@@ -287,9 +289,10 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 <section class="screen on" id="s-week">
  <h2>This Week</h2><div class="sub" id="weeksub">Your optimal lineup, from the model.</div>
  <div class="hero">
-  <div class="opt">◉ OPTIMAL SET</div>
+  <div class="opt">OPTIMAL SET</div>
   <div class="lbl">Projected points</div>
   <div class="big" id="heroPts">—</div>
+  <div class="hero-chg" id="heroChg"></div>
   <div class="cap" id="heroCap">best legal lineup from your roster</div>
  </div>
  <div id="alertBanner" style="display:none;background:rgba(255,92,122,.1);border:1px solid var(--neg);color:var(--neg);border-radius:12px;padding:11px 14px;font-size:12px;font-weight:600;margin-bottom:14px"></div>
@@ -465,9 +468,10 @@ Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk'),F('adp').
 function pRow(p,slot){return `<div class="row"><div class="slot">${slot||''}</div>${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${injBadge(p)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}</div></div><div class="proj">${p.proj}<small>proj</small></div></div>`}
 function renderWeek(){
  const connected=CONN&&CONN.players;
- document.getElementById('heroCap').innerHTML=connected?`your optimal lineup · ${esc(CONN.team)}`:`◈ DEMO team — connect your league on the 🛡️ Team tab for yours`;
- document.querySelector('#s-week .opt').textContent=connected?'◉ OPTIMAL SET':'◈ DEMO';
+ document.getElementById('heroCap').innerHTML=connected?`your optimal lineup · ${esc(CONN.team)}`:`demo team — connect your league on the Team tab for yours`;
+ document.querySelector('#s-week .opt').textContent=connected?'OPTIMAL SET':'DEMO';
  document.getElementById('heroPts').textContent=LINEUP.total;
+ (function(){const chg=Math.round((LINEUP.starters||[]).reduce((t,s)=>t+(s.delta||0),0)*10)/10;const el=document.getElementById('heroChg');if(!el)return;if(Math.abs(chg)<0.1){el.style.display='none';el.innerHTML='';return;}el.style.display='';const up=chg>0;el.innerHTML=`<b style="color:var(--${up?'up':'down'})">${up?'▲ +':'▼ '}${chg}</b><span>vs preseason baseline</span>`;})();
  document.getElementById('starters').innerHTML=LINEUP.starters.map(s=>pRow(s,s.slot)).join('');
  document.getElementById('bench').innerHTML=(LINEUP.bench||[]).map(s=>pRow(s,'BN')).join('')||'<div class="row"><div class="pn m" style="color:var(--dim)">—</div></div>';
  document.getElementById('lineupTot').textContent=LINEUP.starters.length+' starters';
@@ -680,7 +684,7 @@ function renderTeam(){
     <input id="esSwid" placeholder="SWID (private leagues only)" autocomplete="off" style="margin-top:8px">
     <button class="cta" onclick="doESPN()">Connect ESPN</button>`
   : cPlat=='yahoo'?
-   `<div class="note">⚠️ Yahoo's current developer console blocks fantasy access for new apps, so auto-connect may fail. If it errors, use the <b>Manual</b> tab — it works for any Yahoo league.</div>
+   `<div class="note">${ICON('warn',12)} Yahoo's current developer console blocks fantasy access for new apps, so auto-connect may fail. If it errors, use the <b>Manual</b> tab — it works for any Yahoo league.</div>
     <button class="cta" onclick="connectYahoo()">Try Yahoo sign-in</button>`
   :
    `<div class="note">Build your roster by hand — works for <b>any</b> league (Yahoo, CBS, etc.). Search your players and tap to add them.</div>
