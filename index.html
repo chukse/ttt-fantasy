@@ -1061,7 +1061,39 @@ function chatInit(){
 function chatGreeting(){const conn=CONN&&CONN.players;return `Hey — I'm the Towel. Ask about your <b>lineup</b>, the <b>waiver wire</b>, a <b>trade</b>, or your <b>odds</b>. ${conn?'I have '+esc(CONN.team)+' loaded.':'Connect your league on the Team tab and I will use your real roster.'} Every answer comes from our numbers.`;}
 function chatPush(who,html){const log=document.getElementById('chatLog');const d=document.createElement('div');d.className='bub '+who;d.innerHTML=html;log.appendChild(d);log.scrollTop=log.scrollHeight;}
 function chatQuick(q){document.getElementById('chatQ').value=q;chatSend();}
-function chatSend(){const inp=document.getElementById('chatQ');const q=(inp.value||'').trim();if(!q)return;chatPush('me',esc(q));inp.value='';setTimeout(()=>chatPush('ai',chatAnswer(q)),120);}
+let chatHistory=[];
+function fmtChat(t){return esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');}
+function buildChatContext(){
+ const L=[];L.push('Scoring: Full PPR. Current week: '+(META.week||'?')+'.');
+ if(CONN&&CONN.players&&CONN.players.length){
+  L.push('\nMY TEAM ('+CONN.team+'):');
+  CONN.players.forEach(n=>{const p=wpv(n);if(p)L.push('- '+p.name+' '+p.pos+' '+p.team+' | this-week proj '+p.proj+' vs '+p.opp+' ('+p.matchup+')'+((p.form&&p.gp)?', L3 '+p.form:'')+(p.inj?', status '+p.inj:''));});
+  if(LINEUP&&LINEUP.starters)L.push('Optimal lineup ('+LINEUP.total+' proj): '+LINEUP.starters.map(s=>s.slot+' '+s.name+' '+s.proj).join(', '));
+ } else L.push('\n(No league connected — the user has no roster loaded.)');
+ const taken=(CONN&&CONN.rostered&&CONN.rostered.length)?new Set(CONN.rostered):null;
+ const av=WEEK.filter(p=>(taken?!taken.has(p.name):p.own<75)&&p.inj!=='O').sort((a,b)=>b.proj-a.proj).slice(0,40);
+ L.push('\nTOP AVAILABLE (waivers): '+av.map(p=>p.name+' '+p.pos+' proj '+p.proj+' own '+p.own+'%'+((p.form&&p.gp)?' L3 '+p.form:'')).join(' | '));
+ if(CONN&&CONN.teams&&CONN.teams.length)L.push('\nLEAGUE TEAMS: '+CONN.teams.map(t=>t.name+(t.mine?' (me)':'')).join(', '));
+ const vals=DRAFT.slice(0,160).map(p=>p.name+' '+p.pos+(p.pr||'')+' '+Math.round(p.pts));
+ L.push('\nPLAYER TRADE VALUES (projected season pts, higher=better): '+vals.join(' | '));
+ return L.join('\n');
+}
+async function chatSend(){
+ const inp=document.getElementById('chatQ');const q=(inp.value||'').trim();if(!q)return;
+ inp.value='';chatPush('me',esc(q));
+ chatHistory.push({role:'user',content:q});
+ const log=document.getElementById('chatLog');
+ const typing=document.createElement('div');typing.className='bub ai';typing.innerHTML='<span style="opacity:.55">…</span>';log.appendChild(typing);log.scrollTop=log.scrollHeight;
+ try{
+  const r=await fetch(PROXY+'?chat=1',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages:chatHistory.slice(-20),context:buildChatContext()})});
+  const d=await r.json();typing.remove();
+  if(d&&d.text){chatHistory.push({role:'assistant',content:d.text});chatPush('ai',fmtChat(d.text));return;}
+  chatPush('ai',chatAnswer(q)+(d&&d.error?'<div class="mini" style="margin-top:6px;color:var(--faint)">offline mode — '+esc(d.error)+'</div>':''));
+ }catch(e){
+  typing.remove();
+  chatPush('ai',chatAnswer(q)+'<div class="mini" style="margin-top:6px;color:var(--faint)">offline mode — no connection</div>');
+ }
+}
 function findPlayers(q){const toks=q.toLowerCase().replace(/[^a-z ]/g,' ');const hits=[],seen=new Set();
  DRAFT.concat(WEEK).forEach(p=>{const k=nrm(p.name);if(seen.has(k))return;const parts=p.name.toLowerCase().split(' ');
   if(toks.includes(p.name.toLowerCase())||parts.some(x=>{x=x.replace(/[^a-z]/g,'');return x.length>=4&&new RegExp('\\b'+x+'\\b').test(toks);})){seen.add(k);hits.push(p);}});
