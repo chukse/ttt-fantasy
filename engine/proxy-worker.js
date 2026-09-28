@@ -49,8 +49,8 @@ const TOWEL_PERSONA = [
 ].join("\n");
 
 async function towelChat(request, env) {
-  if (!env || !env.ANTHROPIC_API_KEY) {
-    return J({ error: "Chat isn't configured yet — set the ANTHROPIC_API_KEY secret on this worker." }, 200);
+  if (!env || !env.Anthropic_API) {
+    return J({ error: "Chat isn't configured yet — set the Anthropic_API secret on this worker." }, 200);
   }
   const origin = request.headers.get("Origin") || "";
   if (ALLOWED_ORIGIN && origin && origin.indexOf(ALLOWED_ORIGIN) !== 0) {
@@ -72,7 +72,7 @@ async function towelChat(request, env) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-api-key": env.ANTHROPIC_API_KEY,
+        "x-api-key": env.Anthropic_API,
         "anthropic-version": "2023-06-01"
       },
       body: JSON.stringify(payload)
