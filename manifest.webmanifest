@@ -1,0 +1,17 @@
+{
+  "name": "Throw in the Towel — Fantasy",
+  "short_name": "TTT Fantasy",
+  "description": "A fantasy-football trading terminal: live projections, waivers, trades, odds, and a grounded AI assistant.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#08090B",
+  "theme_color": "#08090B",
+  "categories": ["sports", "utilities"],
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
