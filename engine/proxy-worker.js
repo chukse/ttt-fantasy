@@ -26,11 +26,12 @@ async function yahooToken(params) {
 }
 
 // ===== Ask the Towel — Claude chat assistant =====
-// Model: claude-opus-4-8 is the default. For a high-volume consumer chat you can
-// cut cost ~5x by switching to "claude-haiku-4-5" (or "claude-sonnet-4-6" as a middle),
-// and turn thinking off for snappier replies. Just change the two constants below.
-const CHAT_MODEL = "claude-opus-4-8";
-const CHAT_THINKING = { type: "adaptive" };   // set to null for fastest/cheapest
+// Running Haiku 4.5: fast + cheap (~$1/$5 per 1M tokens, ~5x cheaper than Opus) — the right
+// pick for a high-volume consumer chat grounded in our own data. To upgrade reasoning later,
+// set CHAT_MODEL="claude-opus-4-8" (or "claude-sonnet-4-6") AND CHAT_THINKING={type:"adaptive"}.
+// NOTE: Haiku 4.5 does NOT accept the thinking/effort params — keep CHAT_THINKING null on Haiku.
+const CHAT_MODEL = "claude-haiku-4-5";
+const CHAT_THINKING = null;
 const ALLOWED_ORIGIN = "https://chukse.github.io";  // basic abuse gate (not bulletproof)
 
 const TOWEL_PERSONA = [
