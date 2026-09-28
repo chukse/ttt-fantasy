@@ -33,6 +33,7 @@ async function yahooToken(params) {
 const CHAT_MODEL = "claude-haiku-4-5";
 const CHAT_THINKING = null;
 const ALLOWED_ORIGIN = "https://chukse.github.io";  // basic abuse gate (not bulletproof)
+const SB_URL = "https://gpcydpgsgburxozdgylf.supabase.co";  // Supabase project (billing writes go here)
 
 const TOWEL_PERSONA = [
   "You are \"The Towel\" — the in-app fantasy-football assistant for Throw in the Towel.",
@@ -91,6 +92,115 @@ async function towelChat(request, env) {
   return J({ text: text || "(no answer)", stop: (data && data.stop_reason) || "" }, 200);
 }
 
+// ===== Stripe billing (freemium: free core + Pro) =====
+// Secrets/vars on the worker (Cloudflare → Settings → Variables):
+//   STRIPE_SECRET          (secret)  sk_live_… / sk_test_…
+//   STRIPE_WEBHOOK_SECRET  (secret)  whsec_…  (from the Stripe webhook endpoint)
+//   STRIPE_PRICE_MONTHLY   (var)     price_…  ($4.99/mo recurring)
+//   STRIPE_PRICE_SEASON    (var)     price_…  ($19.99 one-time)
+//   SUPABASE_SERVICE_ROLE  (secret)  Supabase service_role key (bypasses RLS to set plan)
+
+// Season pass runs Aug–Jan; a pass bought anytime is valid through Feb 15 of the season's end year.
+function seasonEnd() {
+  const d = new Date(), y = d.getUTCFullYear();
+  const endYear = d.getUTCMonth() >= 6 ? y + 1 : y;  // Jul+ → next Feb, else this Feb
+  return new Date(Date.UTC(endYear, 1, 15)).toISOString();
+}
+
+async function stripeCheckout(request, env) {
+  if (!env.STRIPE_SECRET) return J({ error: "Billing isn't set up yet." }, 200);
+  const origin = request.headers.get("Origin") || "";
+  if (ALLOWED_ORIGIN && origin && origin.indexOf(ALLOWED_ORIGIN) !== 0) return J({ error: "forbidden origin" }, 403);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: "bad request body" }, 400); }
+  const uid = b.user_id;
+  if (!uid) return J({ error: "Sign in first." }, 400);
+  const kind = b.kind === "season" ? "season" : "monthly";
+  const price = kind === "season" ? env.STRIPE_PRICE_SEASON : env.STRIPE_PRICE_MONTHLY;
+  if (!price) return J({ error: "Price not configured on the server." }, 200);
+  const ret = (b.return_url || (ALLOWED_ORIGIN + "/ttt-fantasy/")).split("#")[0].split("?")[0];
+
+  const form = new URLSearchParams();
+  form.set("mode", kind === "season" ? "payment" : "subscription");
+  form.set("line_items[0][price]", price);
+  form.set("line_items[0][quantity]", "1");
+  form.set("client_reference_id", uid);
+  if (b.email) form.set("customer_email", b.email);
+  form.set("success_url", ret + "?upgraded=1");
+  form.set("cancel_url", ret);
+  form.set("metadata[user_id]", uid);
+  form.set("metadata[kind]", kind);
+  if (kind !== "season") form.set("subscription_data[metadata][user_id]", uid);  // carry uid onto sub events
+  if (kind === "season") form.set("payment_intent_data[metadata][user_id]", uid);
+
+  let d;
+  try {
+    const r = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + env.STRIPE_SECRET, "content-type": "application/x-www-form-urlencoded" },
+      body: form
+    });
+    d = await r.json();
+  } catch (e) { return J({ error: "checkout call failed" }, 200); }
+  if (d && d.url) return J({ url: d.url }, 200);
+  return J({ error: (d && d.error && d.error.message) || "stripe error" }, 200);
+}
+
+// Verify Stripe's signature header (t=timestamp,v1=hex-hmac) with Web Crypto — no SDK needed.
+async function verifyStripeSig(payload, header, secret) {
+  const parts = {}; (header || "").split(",").forEach(kv => { const i = kv.indexOf("="); if (i > 0) parts[kv.slice(0, i)] = kv.slice(i + 1); });
+  if (!parts.t || !parts.v1) return false;
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const mac = await crypto.subtle.sign("HMAC", key, enc.encode(parts.t + "." + payload));
+  const hex = [...new Uint8Array(mac)].map(x => x.toString(16).padStart(2, "0")).join("");
+  if (hex.length !== parts.v1.length) return false;
+  let diff = 0; for (let i = 0; i < hex.length; i++) diff |= hex.charCodeAt(i) ^ parts.v1.charCodeAt(i);
+  return diff === 0;
+}
+function sbHeaders(env) {
+  return { apikey: env.SUPABASE_SERVICE_ROLE, Authorization: "Bearer " + env.SUPABASE_SERVICE_ROLE, "content-type": "application/json" };
+}
+async function sbUpsert(env, row) {  // creates or updates by user_id PK
+  await fetch(SB_URL + "/rest/v1/user_state", {
+    method: "POST",
+    headers: { ...sbHeaders(env), Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify(row)
+  });
+}
+async function sbPatch(env, col, val, fields) {
+  await fetch(SB_URL + "/rest/v1/user_state?" + col + "=eq." + encodeURIComponent(val), {
+    method: "PATCH",
+    headers: { ...sbHeaders(env), Prefer: "return=minimal" },
+    body: JSON.stringify(fields)
+  });
+}
+
+async function stripeWebhook(request, env) {
+  if (!env.STRIPE_WEBHOOK_SECRET || !env.SUPABASE_SERVICE_ROLE) return J({ error: "webhook not configured" }, 200);
+  const sig = request.headers.get("stripe-signature") || "";
+  const payload = await request.text();
+  if (!(await verifyStripeSig(payload, sig, env.STRIPE_WEBHOOK_SECRET))) return J({ error: "bad signature" }, 400);
+  let ev; try { ev = JSON.parse(payload); } catch (e) { return J({ error: "bad json" }, 400); }
+  const o = (ev.data && ev.data.object) || {};
+  try {
+    if (ev.type === "checkout.session.completed") {
+      const uid = o.client_reference_id || (o.metadata && o.metadata.user_id);
+      const kind = (o.metadata && o.metadata.kind) || (o.mode === "payment" ? "season" : "monthly");
+      if (uid) await sbUpsert(env, { user_id: uid, plan: "pro", plan_expires: kind === "season" ? seasonEnd() : null, stripe_customer_id: o.customer || null });
+    } else if (ev.type === "customer.subscription.updated") {
+      const uid = o.metadata && o.metadata.user_id;
+      const active = o.status === "active" || o.status === "trialing";
+      if (uid) await sbPatch(env, "user_id", uid, { plan: active ? "pro" : "free", plan_expires: null });
+      else if (o.customer) await sbPatch(env, "stripe_customer_id", o.customer, { plan: active ? "pro" : "free" });
+    } else if (ev.type === "customer.subscription.deleted") {
+      const uid = o.metadata && o.metadata.user_id;
+      if (uid) await sbPatch(env, "user_id", uid, { plan: "free", plan_expires: null });
+      else if (o.customer) await sbPatch(env, "stripe_customer_id", o.customer, { plan: "free", plan_expires: null });
+    }
+  } catch (e) { /* swallow — return 200 so Stripe doesn't hammer retries on our DB hiccup */ }
+  return J({ received: true }, 200);
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { headers: CORS });
@@ -98,6 +208,12 @@ export default {
 
     if (p.get("chat") && request.method === "POST") {
       return towelChat(request, env);
+    }
+    if (p.get("stripe_checkout") && request.method === "POST") {
+      return stripeCheckout(request, env);
+    }
+    if (p.get("stripe_webhook") && request.method === "POST") {
+      return stripeWebhook(request, env);
     }
 
     if (p.get("yahoo_code")) {
