@@ -281,6 +281,29 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 .sheet-card input{width:100%;box-sizing:border-box;background:var(--panel2,#14171D);border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:12px 14px;font-size:15px;font-family:var(--ui);margin:10px 0 4px;outline:none}
 .sheet-card input:focus{border-color:var(--red)}
 .cta.ghost{background:var(--panel2,#14171D);color:var(--dim);border:1px solid var(--line)}
+.acct.pro{color:var(--amber,#F5A524);border-color:rgba(245,165,36,.45)}
+/* Pro-gate lock cards (CSS hides real content, shows the lock) */
+.screen > .lock{display:none}
+.screen.locked > *{display:none}
+.screen.locked > .lock{display:flex}
+.lock{min-height:56vh;align-items:center;justify-content:center;padding:8px 2px}
+.lockcard{background:var(--panel);border:1px solid var(--line2,var(--line));border-radius:14px;padding:26px 22px;text-align:center;max-width:360px;width:100%}
+.lockbolt{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;font-weight:800;letter-spacing:1.2px;color:var(--amber,#F5A524)}
+.lockbolt .ic-svg{width:16px;height:16px}
+.lockcard h3{font-size:19px;margin:12px 0 6px}
+.lockcard p{color:var(--dim);font-size:14px;line-height:1.5;margin:0 0 16px}
+.lockcard .cta{margin:0}
+.lockcard .mini{margin-top:12px;color:var(--faint)}
+.prolist{text-align:left;margin:14px 0 16px;display:flex;flex-direction:column;gap:9px}
+.prolist>div{color:var(--dim);font-size:14px;line-height:1.35;padding-left:20px;position:relative}
+.prolist>div::before{content:"";position:absolute;left:2px;top:6px;width:8px;height:8px;border-radius:2px;background:var(--up,#24D08A)}
+.prolist b{color:var(--ink)}
+.sheet-card .cta{display:flex;align-items:center;justify-content:space-between;margin:0 0 10px}
+.pricetag{font-family:var(--mono);font-weight:800;font-size:15px}
+.pricetag small{font-weight:600;opacity:.7;font-size:11px;margin-left:3px}
+.toast{position:fixed;left:50%;bottom:78px;transform:translate(-50%,20px);z-index:90;background:var(--panel);border:1px solid var(--up,#24D08A);color:var(--ink);font-size:13.5px;font-weight:600;padding:12px 16px;border-radius:11px;max-width:340px;width:calc(100% - 40px);text-align:center;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (min-width:920px){.toast{bottom:26px}}
 @media (prefers-reduced-motion:reduce){.ticker-track,.flash-up,.flash-dn{animation:none}}
 /* ===== DESKTOP: sidebar rail + full-width header + fluid content ===== */
 @media (min-width:920px){
@@ -337,6 +360,21 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
   <button class="cta" style="margin:2px 0 10px" onclick="authSend()">Email me a sign-in link</button>
   <div id="authMsg" class="mini" style="text-align:center;min-height:16px;margin-bottom:10px"></div>
   <button class="cta ghost" onclick="authClose()">Cancel</button>
+ </div>
+</div>
+<div class="sheet" id="gateSheet">
+ <div class="sheet-card">
+  <div class="lockbolt" style="margin-bottom:6px"><svg class="ic-svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bolt"/></svg>THROW IN THE TOWEL — PRO</div>
+  <div class="prolist">
+   <div><b>Unlimited leagues</b> — track every team you're in</div>
+   <div><b>Ask the Towel</b> — the AI that reasons over your roster</div>
+   <div><b>Trade Analyzer</b> — price any deal, both sides</div>
+   <div><b>Chance-to-Win</b> — playoff &amp; title odds all season</div>
+  </div>
+  <button class="cta" onclick="startCheckout('season')"><span>Season pass</span><span class="pricetag">$19.99 <small>best value</small></span></button>
+  <button class="cta ghost" onclick="startCheckout('monthly')"><span>Monthly</span><span class="pricetag">$4.99<small>/mo</small></span></button>
+  <div id="gateMsg" class="mini" style="text-align:center;min-height:16px;margin:8px 0 4px"></div>
+  <button class="cta ghost" style="border:none;background:none;color:var(--faint)" onclick="gateClose()">Maybe later</button>
  </div>
 </div>
 
@@ -439,12 +477,14 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
  <input id="tQ" placeholder="search a player to add…" autocomplete="off" oninput="tSearch()" style="width:100%;background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:12px;padding:11px 14px;font-size:15px">
  <div id="tResults"></div>
  <div id="tBreakdown"></div>
+ <div class="lock"><div class="lockcard"><div class="lockbolt"><svg class="ic-svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bolt"/></svg>PRO</div><h3>Price any trade, instantly</h3><p>Unlock the <b>Trade Analyzer</b>, <b>Ask the Towel</b> AI, <b>Chance-to-Win</b> odds, and <b>unlimited leagues</b>.</p><button class="cta" onclick="gateOpen()">Go Pro — from $4.99</button><div class="mini">Free keeps 1 league, start/sit, waivers &amp; draft tools.</div></div></div>
 </section>
 
 <!-- CHANCE TO WIN -->
 <section class="screen" id="s-odds">
  <h2>Chance to Win</h2><div class="sub" id="oddsSub">Your playoff and title odds, simulated from every team's roster strength.</div>
  <div id="oddsBody"></div>
+ <div class="lock"><div class="lockcard"><div class="lockbolt"><svg class="ic-svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bolt"/></svg>PRO</div><h3>See your playoff &amp; title odds</h3><p>Unlock <b>Chance-to-Win</b> odds, the <b>Trade Analyzer</b>, <b>Ask the Towel</b> AI, and <b>unlimited leagues</b>.</p><button class="cta" onclick="gateOpen()">Go Pro — from $4.99</button><div class="mini">Free keeps 1 league, start/sit, waivers &amp; draft tools.</div></div></div>
 </section>
 
 <!-- CHAT ASSISTANT -->
@@ -458,6 +498,7 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
    <button onclick="chatSend()"><svg class="ic-svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bolt"/></svg></button>
   </div>
  </div>
+ <div class="lock"><div class="lockcard"><div class="lockbolt"><svg class="ic-svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bolt"/></svg>PRO</div><h3>Ask the Towel anything</h3><p>Unlock <b>Ask the Towel</b> AI, the <b>Trade Analyzer</b>, <b>Chance-to-Win</b> odds, and <b>unlimited leagues</b>.</p><button class="cta" onclick="gateOpen()">Go Pro — from $4.99</button><div class="mini">Free keeps 1 league, start/sit, waivers &amp; draft tools.</div></div></div>
 </section>
 
 <nav class="nav" id="nav">
@@ -577,7 +618,7 @@ if(ACTIVE>=LEAGUES.length)ACTIVE=0;
 let CONN=LEAGUES[ACTIVE]||null;
 function saveLeagues(){localStorage.setItem('ttt_leagues',JSON.stringify(LEAGUES));localStorage.setItem('ttt_active',ACTIVE);if(typeof pushCloud==='function')pushCloud();}
 function setActive(i){ACTIVE=i;CONN=LEAGUES[i]||null;addingLeague=false;saveLeagues();applyConnectedRoster();renderWeek();renderTeam();renderWaiver();}
-function showAddLeague(){addingLeague=true;renderTeam();}
+function showAddLeague(){ if(!isPro()&&LEAGUES.length>=1){ gateOpen(); return; } addingLeague=true;renderTeam();}
 const PROXY='https://ttt-espn-proxy.chukegbuchunam.workers.dev/';  // ESPN CORS proxy (Cloudflare Worker)
 const nrm=s=>(s||'').toLowerCase().replace(/[^a-z]/g,'');
 function buildMaps(){const byName={};WEEK.forEach(p=>byName[nrm(p.name)]=p);
@@ -754,6 +795,7 @@ function renderTeam(){
 }
 function saveConn(res){const lg={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name),rostered:res.rostered||[],teams:res.teams||[],records:res.records||null,schedule:res.schedule||null,playoffStart:res.playoffStart||15};
  const i=LEAGUES.findIndex(l=>l.platform===lg.platform&&l.team===lg.team);
+ if(i<0&&!isPro()&&LEAGUES.length>=1){ addingLeague=false; renderTeam(); gateOpen(); return; }   // free = 1 league
  if(i>=0){LEAGUES[i]=lg;ACTIVE=i;}else{LEAGUES.push(lg);ACTIVE=LEAGUES.length-1;}
  CONN=lg;addingLeague=false;saveLeagues();applyConnectedRoster();renderWeek();renderTeam();renderWaiver();}
 function disconnect(){if(ACTIVE<LEAGUES.length)LEAGUES.splice(ACTIVE,1);ACTIVE=0;CONN=LEAGUES[0]||null;saveLeagues();
@@ -1109,6 +1151,7 @@ function buildChatContext(){
  return L.join('\n');
 }
 async function chatSend(){
+ if(!isPro()){ gateOpen(); return; }
  const inp=document.getElementById('chatQ');const q=(inp.value||'').trim();if(!q)return;
  inp.value='';chatPush('me',esc(q));
  chatHistory.push({role:'user',content:q});
@@ -1164,10 +1207,27 @@ function chatAnswer(q){
 const SB_URL="https://gpcydpgsgburxozdgylf.supabase.co";
 const SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwY3lkcGdzZ2J1cnhvemRneWxmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA1Mzc3NTUsImV4cCI6MjEwNjExMzc1NX0.o01OU4S8wdPdYNXJ-lDwJI_EDjfdY2XgJHS3OLz2xfU";
 const sb=(window.supabase&&SB_URL)?window.supabase.createClient(SB_URL,SB_ANON):null;
-let CURRENT_USER=null, USER_PLAN='free';
+let CURRENT_USER=null, USER_PLAN='free', PLAN_EXP=null;
+function isPro(){ return USER_PLAN==='pro' && (!PLAN_EXP || new Date(PLAN_EXP).getTime()>Date.now()); }
 function renderAcct(){const b=document.getElementById('acctBtn');if(!b)return;
- if(CURRENT_USER){const em=CURRENT_USER.email||'';b.textContent='◉ '+((em.split('@')[0]||'account').slice(0,10));b.classList.add('in');}
- else{b.textContent='Sign in';b.classList.remove('in');}}
+ if(CURRENT_USER){const em=CURRENT_USER.email||'';const nm=(em.split('@')[0]||'account').slice(0,10);
+  b.textContent=(isPro()?'⚡ ':'◉ ')+nm;b.classList.add('in');b.classList.toggle('pro',isPro());}
+ else{b.textContent='Sign in';b.classList.remove('in','pro');}}
+/* gate the Pro screens (CSS hides content, shows the lock card) */
+function applyGate(){ const pro=isPro();
+ ['trade','odds','chat'].forEach(function(s){ const el=document.getElementById('s-'+s); if(el)el.classList.toggle('locked',!pro); });
+ renderAcct(); }
+function gateOpen(){document.getElementById('gateSheet').style.display='flex';}
+function gateClose(){document.getElementById('gateSheet').style.display='none';const m=document.getElementById('gateMsg');if(m)m.textContent='';}
+async function startCheckout(kind){ const m=document.getElementById('gateMsg');
+ if(!sb||!CURRENT_USER){ gateClose(); authOpen(); const am=document.getElementById('authMsg'); if(am){am.style.color='var(--dim)';am.textContent='Sign in first, then tap Upgrade again.';} return; }
+ m.style.color='var(--dim)';m.textContent='Opening secure checkout…';
+ try{ const ret=location.href.split('#')[0].split('?')[0];
+  const r=await fetch(PROXY+'?stripe_checkout=1',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({user_id:CURRENT_USER.id,email:CURRENT_USER.email,kind:kind,return_url:ret})});
+  const d=await r.json();
+  if(d&&d.url){ location.href=d.url; return; }
+  throw new Error((d&&d.error)||'Checkout is not set up yet.');
+ }catch(e){ m.style.color='var(--red)'; m.textContent=(e&&e.message)||'Checkout unavailable — try again.'; } }
 function acctTap(){ if(!sb){alert('Sign-in is loading — try again in a moment.');return;}
  if(CURRENT_USER){ if(confirm('Signed in as '+CURRENT_USER.email+'.\n\nSign out?')) sb.auth.signOut(); }
  else authOpen(); }
@@ -1184,9 +1244,9 @@ async function authSend(){const i=document.getElementById('authEmail'),m=documen
 async function pushCloud(){ if(!sb||!CURRENT_USER)return;
  try{ await sb.from('user_state').upsert({user_id:CURRENT_USER.id,state:{leagues:LEAGUES,active:ACTIVE},updated_at:new Date().toISOString()}); }catch(e){} }
 async function loadCloud(){ if(!sb||!CURRENT_USER)return;
- try{ const {data,error}=await sb.from('user_state').select('state,plan').eq('user_id',CURRENT_USER.id).maybeSingle();
+ try{ const {data,error}=await sb.from('user_state').select('*').eq('user_id',CURRENT_USER.id).maybeSingle();
   if(error)throw error;
-  if(data){ USER_PLAN=data.plan||'free';
+  if(data){ USER_PLAN=data.plan||'free'; PLAN_EXP=data.plan_expires||null; applyGate();
    const st=data.state||{};
    if(Array.isArray(st.leagues)&&st.leagues.length){            // cloud has leagues → adopt them
     LEAGUES=st.leagues; ACTIVE=(typeof st.active==='number'&&st.active<LEAGUES.length)?st.active:0; CONN=LEAGUES[ACTIVE]||null;
@@ -1196,11 +1256,20 @@ async function loadCloud(){ if(!sb||!CURRENT_USER)return;
    } else if(LEAGUES.length){ await pushCloud(); }               // account empty, this device has leagues → migrate up
   } else if(LEAGUES.length){ await pushCloud(); }                 // brand-new account → seed with local leagues
  }catch(e){} }
-function initAuth(){ if(!sb)return; renderAcct();
- sb.auth.getSession().then(function(r){ CURRENT_USER=(r&&r.data&&r.data.session&&r.data.session.user)||null; renderAcct(); if(CURRENT_USER)loadCloud(); });
+function initAuth(){ if(!sb){applyGate();return;} applyGate();
+ sb.auth.getSession().then(function(r){ CURRENT_USER=(r&&r.data&&r.data.session&&r.data.session.user)||null; renderAcct(); if(CURRENT_USER){loadCloud().then(handleUpgradeReturn);} else handleUpgradeReturn(); });
  sb.auth.onAuthStateChange(function(ev,session){ CURRENT_USER=(session&&session.user)||null; renderAcct();
   if(ev==='SIGNED_IN'){ authClose(); loadCloud(); }
-  if(ev==='SIGNED_OUT'){ USER_PLAN='free'; } }); }
+  if(ev==='SIGNED_OUT'){ USER_PLAN='free'; PLAN_EXP=null; applyGate(); } }); }
+/* after returning from Stripe (?upgraded=1) the webhook may lag a few seconds — poll the plan */
+function handleUpgradeReturn(){ if(location.search.indexOf('upgraded=1')<0)return;
+ history.replaceState({},'',location.pathname);
+ if(!CURRENT_USER)return;
+ let tries=0; const iv=setInterval(function(){ tries++;
+  loadCloud().then(function(){ if(isPro()){ clearInterval(iv); toast('⚡ You\'re Pro — everything\'s unlocked. Thanks!'); }
+   else if(tries>=8){ clearInterval(iv); toast('Payment received — unlocking may take a minute. Pull to refresh.'); } }); }, 2000); }
+function toast(msg){ let t=document.getElementById('toast'); if(!t){ t=document.createElement('div'); t.id='toast'; t.className='toast'; document.body.appendChild(t); }
+ t.textContent=msg; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},4200); }
 
 /* ---------- NAV ---------- */
 function showScreen(s,navKey){
