@@ -14,15 +14,15 @@ import pandas as pd, numpy as np, requests, io
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))            # NFL DATA (real)
-HIST = os.path.join(ROOT, "pff_hist", "2025")
+def HIST(season): return os.path.join(ROOT, "pff_hist", str(season))
 NFV  = "https://github.com/nflverse/nflverse-data/releases/download"
 TEAMFIX = {"ARZ":"ARI","BLT":"BAL","CLV":"CLE","HST":"HOU"}
 def tfix(t): return TEAMFIX.get(str(t), str(t))
 def norm(s): return re.sub(r'[^a-z]','',re.sub(r'\b(jr|sr|ii|iii|iv|v)\b','',str(s).lower()))
 def clamp(x,a,b): return max(a,min(b,x))
 
-def load_ep(week, ep):
-    f = os.path.join(HIST, f"wk{week:02d}_{ep}.json")
+def load_ep(season, week, ep):
+    f = os.path.join(HIST(season), f"wk{week:02d}_{ep}.json")
     if not os.path.exists(f): return []
     d = json.load(open(f))
     if isinstance(d, dict):
@@ -31,7 +31,7 @@ def load_ep(week, ep):
     return d if isinstance(d, list) else []
 
 # ---------- point-in-time PFF snapshot through (week-1) ----------
-def pff_through(upto):   # inclusive of weeks 1..upto
+def pff_through(season, upto):   # inclusive of weeks 1..upto
     # player talent
     ry=collections.defaultdict(float); rr=collections.defaultdict(float)   # recv yards / routes
     elu_n=collections.defaultdict(float); elu_d=collections.defaultdict(float)  # elusive*att / att
@@ -41,16 +41,16 @@ def pff_through(upto):   # inclusive of weeks 1..upto
     cov_n=collections.defaultdict(float); cov_d=collections.defaultdict(float)
     run_n=collections.defaultdict(float); run_d=collections.defaultdict(float)
     for w in range(1, upto+1):
-        for r in load_ep(w,"receiving"):
+        for r in load_ep(season,w,"receiving"):
             k=norm(r.get("player")); rt=r.get("routes") or 0; yd=r.get("yards") or 0
             if rt: rr[k]+=rt; ry[k]+=yd; pos.setdefault(k,r.get("position","WR"))
-        for r in load_ep(w,"rushing"):
+        for r in load_ep(season,w,"rushing"):
             k=norm(r.get("player")); at=r.get("attempts") or 0; el=r.get("elusive_rating")
             if at and el is not None: elu_n[k]+=el*at; elu_d[k]+=at; pos[k]="RB"
-        for r in load_ep(w,"passing"):
+        for r in load_ep(season,w,"passing"):
             k=norm(r.get("player")); db=r.get("dropbacks") or 0; g=r.get("grades_pass")
             if db and g is not None: pg_n[k]+=g*db; pg_d[k]+=db; pos.setdefault(k,"QB")
-        for r in load_ep(w,"defense"):   # defense_summary carries BOTH coverage & run-def grades
+        for r in load_ep(season,w,"defense"):   # defense_summary carries BOTH coverage & run-def grades
             t=tfix(r.get("team"))
             sc=r.get("snap_counts_coverage") or 0; gc=r.get("grades_coverage_defense")
             if sc and gc is not None: cov_n[t]+=gc*sc; cov_d[t]+=sc
@@ -79,52 +79,60 @@ def pff_factor(pos, name, opp, S):
     mfp=clamp(mfp,0.90,1.12)
     return tf, mfp   # decomposed
 
-def main():
-    print("loading nflverse 2025 weekly...")
-    r=requests.get(f"{NFV}/stats_player/stats_player_week_2025.csv",timeout=90); r.raise_for_status()
+def blank(): return dict(n=0,e0=0.0,et=0.0,em=0.0,eb=0.0,es=0.0,mat_better=0,mat_moved=0)
+
+def run_season(season, agg):
+    try:
+        r=requests.get(f"{NFV}/stats_player/stats_player_week_{season}.csv",timeout=120); r.raise_for_status()
+    except Exception as e:
+        print(f"  {season}: nflverse fetch failed ({str(e)[:50]}) — skipped"); return 0
     W=pd.read_csv(io.StringIO(r.text),low_memory=False)
     W=W[W.position.isin(["QB","RB","WR","TE"])].copy()
     W["fp"]=pd.to_numeric(W.get("fantasy_points_ppr"),errors="coerce").fillna(0)
-    tcol="team" if "team" in W.columns else "recent_team"
-    W=W.rename(columns={tcol:"team"})
-    maxwk=int(W.week.max()); print("weeks available:",maxwk)
-
-    # accumulate SSE for baseline + 3 variants (talent-only, matchup-only, both), by pos and by phase
-    def blank(): return dict(n=0,e0=0.0,et=0.0,em=0.0,eb=0.0,mat_better=0,mat_moved=0)
-    agg=collections.defaultdict(blank)
+    tcol="team" if "team" in W.columns else "recent_team"; W=W.rename(columns={tcol:"team"})
+    maxwk=int(W.week.max()); rows=0
     for Wk in range(5, maxwk+1):
-        S=pff_through(Wk-1)
+        S=pff_through(season, Wk-1)
         hist=W[W.week<Wk]; cur=W[W.week==Wk]
         phase="early(5-9)" if Wk<=9 else "late(10+)"
         for _,row in cur.iterrows():
-            pid=row.player_id; pos=row.position; name=row.player_display_name
-            h=hist[hist.player_id==pid].sort_values("week")
+            pos=row.position; name=row.player_display_name
+            h=hist[hist.player_id==row.player_id].sort_values("week")
             if len(h)<2: continue
-            s2d=h.fp.mean(); l3=h.fp.tail(3).mean(); proj0=0.5*s2d+0.5*l3
+            proj0=0.5*h.fp.mean()+0.5*h.fp.tail(3).mean()
             if proj0<3: continue
             act=row.fp; tf,mfp=pff_factor(pos,name,row.get("opponent_team"),S)
             pt=proj0*tf; pm=proj0*clamp(mfp,0.90,1.12); pb=proj0*clamp(tf*mfp,0.88,1.14)
-            # SMART: talent only for TE/QB, no matchup, and only once PFF sample is mature (Wk>=8)
-            smart = tf if (pos in ("TE","QB") and Wk>=8) else 1.0
-            ps=proj0*smart
-            for key in ("ALL",pos,pos+" "+phase):
+            smart = tf if (pos in ("TE","QB") and Wk>=8) else 1.0; ps=proj0*smart
+            for key in ("ALL",pos,pos+" "+phase,f"· {season}"):
                 a=agg[key]; a["n"]+=1
-                a["e0"]+=abs(proj0-act); a["et"]+=abs(pt-act); a["em"]+=abs(pm-act); a["eb"]+=abs(pb-act)
-                a["es"]=a.get("es",0.0)+abs(ps-act)
+                a["e0"]+=abs(proj0-act); a["et"]+=abs(pt-act); a["em"]+=abs(pm-act); a["eb"]+=abs(pb-act); a["es"]+=abs(ps-act)
                 if mfp!=1.0:
                     a["mat_moved"]+=1
                     if abs(pm-act)<abs(proj0-act): a["mat_better"]+=1
+            rows+=1
+    print(f"  {season}: {rows} player-weeks (wks 5-{maxwk})"); return rows
+
+def main():
+    base=os.path.join(ROOT,"pff_hist")
+    seasons=sorted(int(d) for d in os.listdir(base) if d.isdigit()
+                   and len(glob.glob(os.path.join(HIST(int(d)),"wk*_defense.json")))>=10)
+    print("pooling seasons:",seasons)
+    agg=collections.defaultdict(blank)
+    for s in seasons: run_season(s, agg)
     def line(key):
         a=agg.get(key)
         if not a or not a["n"]: return
         n=a["n"]; m0=a["e0"]/n
-        print(f"{key:16s} {n:5d} {m0:8.3f} {a['et']/n-m0:+8.3f} {a['em']/n-m0:+8.3f} {a['eb']/n-m0:+8.3f} {a.get('es',0)/n-m0:+8.3f}")
-    print(f"\n{'group':16s} {'n':>5s} {'MAEbase':>8s} {'dTALENT':>8s} {'dMATCH':>8s} {'dBOTH':>8s} {'dSMART':>8s}")
-    print("-"*74)
+        print(f"{key:16s} {n:6d} {m0:8.3f} {a['et']/n-m0:+8.3f} {a['em']/n-m0:+8.3f} {a['eb']/n-m0:+8.3f} {a['es']/n-m0:+8.3f}")
+    print(f"\n{'group':16s} {'n':>6s} {'MAEbase':>8s} {'dTALENT':>8s} {'dMATCH':>8s} {'dBOTH':>8s} {'dSMART':>8s}")
+    print("-"*75)
     for key in ("ALL","QB","RB","WR","TE"): line(key)
-    print("-"*74)
+    print("-"*75)
     for pos in ("QB","RB","WR","TE"):
         for ph in ("early(5-9)","late(10+)"): line(pos+" "+ph)
-    print("\ndX = change in MAE from that layer alone (negative = REDUCES error = good).")
+    print("-"*75)
+    for s in seasons: line(f"· {s}")
+    print("\ndX = change in MAE from that layer alone (negative = REDUCES error = good). dSMART = shipped config.")
 
 if __name__=="__main__": main()
