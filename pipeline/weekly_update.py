@@ -183,26 +183,17 @@ def main():
                 wt=min(0.7, r["gp"]/(r["gp"]+3.0))           # ML weight grows with games played
                 proj=wt*mlp+(1-wt)*shrink
             except Exception: mlp=None
-        # ---- PFF LAYER: advanced-stat talent prior + graded matchup, on top of nflverse+ML ----
-        # Bounded so PFF only nudges (talent ±8%, matchup ±12%, combined ±14%) — we can't yet
-        # historically backtest a single-season PFF snapshot, so it rides shrunk and conservative.
-        if pffp:
-            ppl=pffp.get("players",{}).get(norm(r["name"]),{}); pm=pffp.get("means",{})
-            tf=1.0
-            if pos in("WR","TE") and ppl.get("yprr") is not None:   tf=1+0.08*(clamp((ppl["yprr"]-1.2)/1.6,0,1)-0.5)*2
-            elif pos=="RB" and ppl.get("elusive") is not None:      tf=1+0.10*(clamp((ppl["elusive"]-40)/55,0,1)-0.5)*2
-            elif pos=="QB" and ppl.get("pass_grade") is not None:   tf=1+0.08*(clamp((ppl["pass_grade"]-55)/35,0,1)-0.5)*2
-            tf=clamp(tf,0.94,1.08)
-            mfp=1.0; od2=pffp.get("teams",{}).get(fix(o)) if o else None
-            if od2:
-                if pos in("WR","TE") and pm.get("cov"): mfp=1+0.10*(pm["cov"]-od2["def_pass"])/8
-                elif pos=="RB" and pm.get("run"):       mfp=1+0.10*(pm["run"]-od2["def_run"])/8
-                elif pos=="QB" and pm.get("cov"):       mfp=1+0.07*(pm["cov"]-od2["def_pass"])/8
-            mfp=clamp(mfp,0.90,1.12)
-            proj*=clamp(tf*mfp,0.88,1.14)
-            if mfp>=1.045: why.append("PFF: soft matchup")
-            elif mfp<=0.955: why.append("PFF: tough matchup")
-            elif tf>=1.055: why.append("PFF talent")
+        # ---- PFF LAYER — walk-forward backtested on 2025; ships only what actually cut error. ----
+        # TE & QB talent grades reduced MAE (TE -0.04, QB -0.03) once the season has enough PFF
+        # sample (wk>=8). RB/WR talent and the defense-grade matchup showed NO gain (RB slightly
+        # worse), so they're intentionally excluded. Matchup context still lives in the board.
+        if pffp and wk>=8:
+            ppl=pffp.get("players",{}).get(norm(r["name"]),{}); tf=1.0
+            if pos=="TE" and ppl.get("yprr") is not None:         tf=1+0.08*(clamp((ppl["yprr"]-1.2)/1.6,0,1)-0.5)*2
+            elif pos=="QB" and ppl.get("pass_grade") is not None: tf=1+0.08*(clamp((ppl["pass_grade"]-55)/35,0,1)-0.5)*2
+            tf=clamp(tf,0.94,1.08); proj*=tf
+            if tf>=1.045: why.append("PFF: elite on tape")
+            elif tf<=0.955: why.append("PFF: weak on tape")
         trend=round(r["l3"]-r["std"],1)                       # + = heating up
         hot = r["gp"]>=1 and r["l3"]>=12 and r["l3"]>r["base"]*1.3
         if hot: why.insert(0,"🔥 trending up")
@@ -253,7 +244,7 @@ def main():
     src=f"rolling {hyb} (live {wk-1}wk)" if (live is not None and wk>1) else "preseason base"
     json.dump({"season":SEASON,"week":wk,"updated":datetime.date.today().isoformat(),
                "status":"in-season" if wk>1 else "preseason","source":src,
-               "note":f"Week {wk} — HYBRID rolling projections ({src}): shrinkage prior blended with weekly ML model re-run on live features + matchup + nflverse scheme + PFF advanced-stat grades + injuries. Ownership = live ESPN % rostered."},
+               "note":f"Week {wk} — HYBRID rolling projections ({src}): shrinkage prior blended with weekly ML model re-run on live features + matchup + nflverse scheme + PFF TE/QB talent (backtested, wk8+) + injuries. Ownership = live ESPN % rostered."},
               open(os.path.join(DATA,"meta.json"),"w"))
     print(f"[roll] week {wk} · {len(week)} players · {hyb} · {len(FEAT)} ML-scored · {len(inj)} injuries")
 
