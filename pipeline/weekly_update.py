@@ -94,6 +94,25 @@ def injuries(wk):
         return out
     except Exception: return {}
 
+def sleeper_injuries():
+    """News-driven injury feed (free, no auth, works in CI; updates ahead of the official report).
+    Returns {norm_name: (code, note)} — e.g. Dart -> ('O','IR · Knee - Meniscus')."""
+    try:
+        d=requests.get("https://api.sleeper.app/v1/players/nfl",timeout=90).json()
+        M={"IR":"O","PUP":"O","Out":"O","Sus":"O","DNR":"O","NA":"O","Doubtful":"D","Questionable":"Q"}
+        out={}
+        for p in d.values():
+            if p.get("position") in ("QB","RB","WR","TE") and p.get("injury_status"):
+                c=M.get(p["injury_status"])
+                if not c: continue
+                note=p["injury_status"]; bp=p.get("injury_body_part")
+                if bp and bp not in ("Not Injury Related",): note=p["injury_status"]+" · "+bp
+                out[norm(p.get("full_name") or "")]=(c,note)
+        print(f"[roll] Sleeper injury feed: {len(out)} skill players flagged")
+        return out
+    except Exception as e:
+        print("[roll] Sleeper injury feed failed:",e); return {}
+
 def main():
     refresh_adp(); refresh_fpros()
     model=load_model(); OWN=espn_ownership()
@@ -106,6 +125,9 @@ def main():
 
     base={norm(r["name"]):r for r in load("base_projections.json")}
     scheme=load("scheme.json"); inj=injuries(wk)
+    sinj=sleeper_injuries(); SEV={"O":3,"D":2,"Q":1}; injnote={}      # overlay the Sleeper news feed (fresher)
+    for k,(c,note) in sinj.items():
+        if SEV.get(c,0)>=SEV.get(inj.get(k,""),0): inj[k]=c; injnote[k]=note
     try: pffp={} if os.getenv("NOPFF") else load("pff_prior.json")   # PFF priors (committed; refreshed on PFF re-pull; NOPFF=1 to A/B)
     except Exception: pffp={}
 
@@ -213,7 +235,7 @@ def main():
         week.append({"name":r["name"],"pos":pos,"team":tm,"opp":od,"proj":round(proj,1),"base":round(r["base"],1),
                      "roll":round(b,1),"ml":(round(mlp,1) if mlp is not None else None),"form":round(r["l3"],1),"trend":trend,"gp":r["gp"],
                      "matchup":("good" if proj>b*1.03 else "tough" if proj<b*0.97 else "even"),
-                     "delta":round(proj-r["base"],1),"own":own,"chg":chg,"inj":inj.get(norm(r["name"]),""),"rec":round(r.get("rec",0.0),1),
+                     "delta":round(proj-r["base"],1),"own":own,"chg":chg,"inj":inj.get(norm(r["name"]),""),"injn":injnote.get(norm(r["name"]),""),"rec":round(r.get("rec",0.0),1),
                      "spark":r.get("spark",[]),"why":"; ".join(why),"rk":r["rk"],"pr":r["pr"]})
     # ---- VACATED OPPORTUNITY: injured starter -> next man up gets the touches ----
     try:
