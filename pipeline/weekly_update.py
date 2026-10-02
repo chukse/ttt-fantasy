@@ -83,7 +83,15 @@ def injuries(wk):
             av=inj[inj.week<wk].week
             if len(av): cur=inj[inj.week==int(av.max())]     # carry forward the latest available report
         m={"Out":"O","Doubtful":"D","Questionable":"Q"}
-        return {norm(r.full_name):m.get(r.report_status,"") for _,r in cur.iterrows() if r.report_status in m}
+        out={}
+        for _,r in cur.iterrows():
+            st=r.report_status if isinstance(r.report_status,str) else ""
+            if st in m: out[norm(r.full_name)]=m[st]
+            else:                                            # no game status yet — catch DNP from the practice report
+                pr=r.get("practice_status") if hasattr(r,"get") else getattr(r,"practice_status","")
+                if isinstance(pr,str) and "Did Not Participate" in pr:
+                    out.setdefault(norm(r.full_name),"Q")
+        return out
     except Exception: return {}
 
 def main():
