@@ -405,6 +405,13 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 .cmp-r .cv.win{color:var(--up,#24D08A);font-weight:800}
 .cmp-r .cl{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;padding:0 10px;white-space:nowrap}
 .cmp-verdict{margin-top:14px;background:rgba(36,208,138,.08);border:1px solid rgba(36,208,138,.38);border-radius:9px;padding:11px 13px;font-size:14px;line-height:1.45}
+/* first-load spinner */
+.loadov{position:fixed;inset:0;z-index:200;background:var(--bg,#08090B);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .35s}
+.loadov.hide{opacity:0;pointer-events:none}
+.spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--red);border-radius:50%;animation:ldspin .7s linear infinite}
+.loadtxt{color:var(--dim);font-family:var(--mono);font-size:11px;letter-spacing:2px;font-weight:700}
+@keyframes ldspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
 @media (prefers-reduced-motion:reduce){.ticker-track,.flash-up,.flash-dn{animation:none}}
 /* ===== DESKTOP: sidebar rail + full-width header + fluid content ===== */
 @media (min-width:920px){
@@ -448,6 +455,7 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4l8.5 15H3.5L12 4z"/><path d="M12 10v4M12 16.5v.3"/></symbol>
  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3L5 13.5h6l-1 7.5 8-10.5h-6l1-7.5z"/></symbol>
 </defs></svg>
+<div id="loadOverlay" class="loadov"><div class="spin"></div><div class="loadtxt">LOADING YOUR WEEK…</div></div>
 <div class="top">
  <div class="brand"><span class="dot"></span>THROW IN THE TOWEL</div>
  <div style="display:flex;align-items:center;gap:8px"><span class="wk" id="wklbl">WEEK 1</span><span class="badge" id="statusbadge">preseason</span><button class="acct" id="acctBtn" onclick="acctTap()">Sign in</button></div>
@@ -763,6 +771,7 @@ Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk'),F('adp').
  if(CONN&&CONN.leagueId)setTimeout(function(){refreshLeague(true);},400);   // silently pull the latest roster on open
  renderTicker();
  renderMatchTeaser();
+ (function(){var lo=document.getElementById('loadOverlay');if(lo){lo.classList.add('hide');setTimeout(function(){lo.style.display='none';},350);}})();
  handleYahooRedirect();
  initAuth();
 });
@@ -1277,12 +1286,16 @@ function tRenderLists(){
 }
 function tAdd(name){const arr=tSide==='give'?tGive:tGet;if(!tGive.includes(name)&&!tGet.includes(name))arr.push(name);document.getElementById('tQ').value='';tRenderLists();tSearch();tVerdict();}
 function tRemove(side,name){if(side==='give')tGive=tGive.filter(x=>x!==name);else tGet=tGet.filter(x=>x!==name);tRenderLists();tSearch();tVerdict();}
+let trFilt='ALL';
+function trSetFilt(f){trFilt=f;tSearch();}
 function tSearch(){
  const q=(document.getElementById('tQ').value||'').toLowerCase();const res=document.getElementById('tResults');
- if(!q){res.innerHTML='';return;}
  const used=new Set([...tGive,...tGet].map(nrm));
- const hits=DRAFT.filter(p=>p.name.toLowerCase().includes(q)&&!used.has(nrm(p.name))).slice(0,7);
- res.innerHTML=hits.map(p=>`<div class="row" style="padding:9px 12px;cursor:pointer" onclick="tAdd('${p.name.replace(/'/g,"\\'")}')">${chip(p.pos)}<div class="pn"><div class="n" style="font-size:14px">${esc(p.name)}</div><div class="m">${p.team} · ${p.pos}${p.pr} · ${Math.round(p.pts)} val</div></div><div class="proj" style="color:var(--primary2)">+</div></div>`).join('');
+ let pool=DRAFT.filter(p=>!used.has(nrm(p.name))&&(trFilt=='ALL'||p.pos==trFilt));
+ const hits = q ? pool.filter(p=>p.name.toLowerCase().includes(q)).slice(0,10)
+                : pool.slice().sort((a,b)=>b.pts-a.pts).slice(0,8);   // browse top by value when empty
+ const chips='<div class="tabs" style="margin:4px 0 8px">'+['ALL','QB','RB','WR','TE'].map(f=>`<div class="pf${f==trFilt?' on':''}" onclick="trSetFilt('${f}')">${f}</div>`).join('')+'</div>';
+ res.innerHTML=chips+(hits.length?hits.map(p=>`<div class="row" style="padding:9px 12px;cursor:pointer" onclick="tAdd('${p.name.replace(/'/g,"\\'")}')">${chip(p.pos)}<div class="pn"><div class="n" style="font-size:14px">${esc(p.name)}</div><div class="m">${p.team} · ${p.pos}${p.pr} · ${Math.round(p.pts)} val</div></div><div class="proj" style="color:var(--primary2)">+</div></div>`).join('') : '<div class="mini" style="padding:8px 4px;color:var(--faint)">No players match.</div>');
 }
 function tVerdict(){
  const vd=document.getElementById('tradeVerdict'),bd=document.getElementById('tBreakdown');
