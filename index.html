@@ -354,6 +354,10 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 .bteam{font-weight:700;font-size:13px;min-width:36px}
 .bsub{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:auto;white-space:nowrap}
 @media (max-width:420px){.trboard{grid-template-columns:1fr}}
+.score-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.score-row>span:first-child{font-size:13px;font-weight:700;color:var(--ink)}
+.score-row select{background:var(--panel2,#14171D);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 10px;font-size:14px;font-family:var(--ui)}
+.score-row .mini{color:var(--faint)}
 @media (prefers-reduced-motion:reduce){.ticker-track,.flash-up,.flash-dn{animation:none}}
 /* ===== DESKTOP: sidebar rail + full-width header + fluid content ===== */
 @media (min-width:920px){
@@ -637,7 +641,7 @@ Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk'),F('adp').
 });
 
 /* ---------- THIS WEEK ---------- */
-function pRow(p,slot){return `<div class="row"><div class="slot">${slot||''}</div>${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${injBadge(p)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}</div></div><div class="proj">${p.proj}<small>proj</small></div></div>`}
+function pRow(p,slot){return `<div class="row"><div class="slot">${slot||''}</div>${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${injBadge(p)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}</div></div><div class="proj">${pxProj(p)}<small>proj</small></div></div>`}
 function renderWeek(){
  const connected=CONN&&CONN.players;
  document.getElementById('heroCap').innerHTML=connected?`your optimal lineup · ${esc(CONN.team)}`:`demo team — connect your league on the Team tab for yours`;
@@ -652,12 +656,13 @@ function renderWeek(){
  ab.innerHTML=al.length?`${ICON('warn',14)} <b>${al.length} availability alert${al.length>1?'s':''}:</b> ${al.map(a=>esc(a.name)+' ('+a.inj+')').join(', ')} — check status before lock.`:'';
  ab.style.display=al.length?'block':'none';
  // start / sit calls: best starter vs a bench guy who's close
- const st=[...LINEUP.starters].sort((a,b)=>b.proj-a.proj)[0];
- const si=[...(LINEUP.bench||[])].sort((a,b)=>b.proj-a.proj)[0];
+ const st=[...LINEUP.starters].sort((a,b)=>pxProj(b)-pxProj(a))[0];
+ const si=[...(LINEUP.bench||[])].sort((a,b)=>pxProj(b)-pxProj(a))[0];
  document.getElementById('calls').innerHTML=
-  `<div class="call start"><div class="h">▲ Must start</div><div class="p">${esc(st.name)}</div><div class="r">${st.pos} · ${st.opp} · ${st.proj} proj</div></div>`+
-  (si?`<div class="call sit"><div class="h">▼ On the bench</div><div class="p">${esc(si.name)}</div><div class="r">${si.pos} · ${si.opp} · ${si.proj} proj</div></div>`:'');
- document.getElementById('weeksub').textContent=META.note;
+  `<div class="call start"><div class="h">▲ Must start</div><div class="p">${esc(st.name)}</div><div class="r">${st.pos} · ${st.opp} · ${pxProj(st)} proj</div></div>`+
+  (si?`<div class="call sit"><div class="h">▼ On the bench</div><div class="p">${esc(si.name)}</div><div class="r">${si.pos} · ${si.opp} · ${pxProj(si)} proj</div></div>`:'');
+ const pprL=(leaguePPR()===0)?'Standard':(leaguePPR()+' PPR');
+ document.getElementById('weeksub').textContent=connected?`Tuned to your league: ${pprL}${(TR&&TR.team_adj)?' + Week '+TR.week+' trench matchups':''}. Change scoring on the Team tab.`:META.note;
  renderMovers();
 }
 
@@ -801,21 +806,37 @@ async function pickYahoo(teamKey,name){
  }catch(err){e.textContent=err.message;}
 }
 
-// --- client-side optimizer (injury-aware) ---
+// --- league-adjusted projection: convert 1-PPR model proj -> your league's scoring + a light trench nudge ---
+function leaguePPR(){ return (CONN && typeof CONN.ppr==='number') ? CONN.ppr : 1; }
+function trenchFactor(p){                        // "a little": bounded ±5% from this week's OL/DEF matchup
+ if(!TR||!TR.team_adj||!p||!p.team) return 1;
+ const t=TR.team_adj[p.team]; if(!t) return 1;
+ const e = (p.pos==='RB') ? (t.rb||0) : (['QB','WR','TE'].includes(p.pos) ? (t.pass||0) : 0);
+ return 1 + Math.max(-0.05, Math.min(0.05, e*0.018));
+}
+function pxProj(p){                              // the number the optimizer ranks on (and we display when connected)
+ if(!p||typeof p.proj!=='number') return 0;
+ if(!(CONN&&CONN.players)) return p.proj;        // demo / not connected: raw model proj
+ const ppr=leaguePPR();
+ const scored = p.proj + (ppr-1)*(p.rec||0);     // +1 pt per catch per PPR point above 1 (your 2-PPR = +1×rec)
+ return Math.round(scored*trenchFactor(p)*10)/10;
+}
+// --- client-side optimizer (injury-aware, league + trench adjusted) ---
 function optimize(roster){
  const elig=roster.filter(p=>p.inj!=='O');let pool=elig.slice(),start=[];
- [['QB',1],['RB',2],['WR',2],['TE',1]].forEach(([pos,n])=>{const s=pool.filter(p=>p.pos==pos).sort((a,b)=>b.proj-a.proj).slice(0,n);start=start.concat(s);pool=pool.filter(p=>!s.includes(p));});
- const fl=pool.filter(p=>['RB','WR','TE'].includes(p.pos)).sort((a,b)=>b.proj-a.proj).slice(0,1);
+ [['QB',1],['RB',2],['WR',2],['TE',1]].forEach(([pos,n])=>{const s=pool.filter(p=>p.pos==pos).sort((a,b)=>pxProj(b)-pxProj(a)).slice(0,n);start=start.concat(s);pool=pool.filter(p=>!s.includes(p));});
+ const fl=pool.filter(p=>['RB','WR','TE'].includes(p.pos)).sort((a,b)=>pxProj(b)-pxProj(a)).slice(0,1);
  const st=start.concat(fl.map(f=>({...f,slot:'FLEX'})));pool=pool.filter(p=>!fl.includes(p));
  st.forEach(s=>s.slot=s.slot||s.pos);
  const bench=roster.filter(p=>!st.some(s=>s.name===p.name));
  const alerts=st.filter(s=>s.inj==='Q'||s.inj==='D').map(a=>({name:a.name,inj:a.inj}));
- return {starters:st,bench,total:Math.round(st.reduce((t,s)=>t+s.proj,0)*10)/10,alerts,connected:true,team:CONN&&CONN.team};
+ return {starters:st,bench,total:Math.round(st.reduce((t,s)=>t+pxProj(s),0)*10)/10,alerts,connected:true,team:CONN&&CONN.team};
 }
 function applyConnectedRoster(){
  const roster=CONN.players.map(n=>WEEK.find(p=>p.name===n)).filter(Boolean);
  if(roster.length){LINEUP=optimize(roster);}
 }
+function setPPR(v){ if(CONN){ CONN.ppr=+v; saveLeagues(); applyConnectedRoster(); renderWeek(); renderTeam(); } }
 
 // --- connect flow UI ---
 let cPlat='sleeper';
@@ -829,7 +850,11 @@ function renderTeam(){
  const box=document.getElementById('connectBox');
  if(CONN&&!addingLeague){
   document.getElementById('teamsub').textContent=LEAGUES.length>1?`${LEAGUES.length} leagues connected · showing ${CONN.team}`:`${CONN.platform} · ${CONN.team}`;
-  box.innerHTML=leagueSwitcher()+`<button class="cta" style="background:var(--card2);color:var(--dim)" onclick="disconnect()">Disconnect ${esc(CONN.team)}</button>`;
+  box.innerHTML=leagueSwitcher()
+   +`<div class="score-row"><span>Scoring</span><select id="pprSel" onchange="setPPR(this.value)">`
+   +[['0','Standard'],['0.5','Half-PPR'],['1','Full PPR'],['1.5','1.5-PPR'],['2','2-PPR']].map(o=>`<option value="${o[0]}"${(+o[0]===leaguePPR())?' selected':''}>${o[1]}</option>`).join('')
+   +`</select><span class="mini">your lineup &amp; start/sit use this</span></div>`
+   +`<button class="cta" style="background:var(--card2);color:var(--dim)" onclick="disconnect()">Disconnect ${esc(CONN.team)}</button>`;
   const roster=CONN.players.map(n=>WEEK.find(p=>p.name===n)).filter(Boolean).sort((a,b)=>b.proj-a.proj);
   document.getElementById('rosterCard').style.display='';
   document.getElementById('connMeta').textContent=CONN.platform+' · '+roster.length+' mapped';
@@ -868,7 +893,7 @@ function renderTeam(){
   `<div id="connErr" style="color:var(--neg);font-size:12px;text-align:center"></div>`;
  if(cPlat=='manual')manRender();
 }
-function saveConn(res){const lg={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name),rostered:res.rostered||[],teams:res.teams||[],records:res.records||null,schedule:res.schedule||null,playoffStart:res.playoffStart||15};
+function saveConn(res){const ex=LEAGUES.find(l=>l.platform===res.platform&&l.team===res.team);const lg={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name),rostered:res.rostered||[],teams:res.teams||[],records:res.records||null,schedule:res.schedule||null,playoffStart:res.playoffStart||15,ppr:(typeof res.ppr==='number'?res.ppr:(ex&&typeof ex.ppr==='number'?ex.ppr:1))};
  const i=LEAGUES.findIndex(l=>l.platform===lg.platform&&l.team===lg.team);
  if(i<0&&!isPro()&&LEAGUES.length>=1){ addingLeague=false; renderTeam(); gateOpen(); return; }   // free = 1 league
  if(i>=0){LEAGUES[i]=lg;ACTIVE=i;}else{LEAGUES.push(lg);ACTIVE=LEAGUES.length-1;}
