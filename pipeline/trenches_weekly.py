@@ -184,7 +184,7 @@ dfx["drush"]=z(0.6*z(DF.pr_grade)+0.4*z(DF.pr_winrate)).values
 dfx["dpass_rk"]=DF.pass_rank.values; dfx["drun_rk"]=DF.run_rank.values; dfx["dovr_rk"]=DF["rank"].values
 dfx["drush_rk"]=DF.passrush_rank.values
 gU = gs[gs.week == UPCOMING][["home_team","away_team"]]
-matchups, leans = [], []
+matchups, leans, team_adj = [], [], {}
 for _, r in gU.iterrows():
     for off, opp in [(r.away_team, r.home_team), (r.home_team, r.away_team)]:
         if off not in olx.index or opp not in dfx.index: continue
@@ -198,6 +198,8 @@ for _, r in gU.iterrows():
         leans.append(dict(off=off, opp=opp, rb=round(rb_l,2), pas=round(pas_l,2), dst=round(dst_l,2),
             olr_rk=int(o.olr_rk), drun_rk=int(de.drun_rk), olp_rk=int(o.olp_rk), dpass_rk=int(de.dpass_rk),
             dovr_rk=int(de.dovr_rk)))
+        # compact per-team adjustment the app folds (lightly) into its lineup optimizer
+        team_adj[off] = {"rb": round(rb_l,2), "pass": round(pas_l,2)}
 L = pd.DataFrame(leans)
 def rank_leans(col, who):   # who='off' for RB/pass, 'opp'(=dst team) for DST
     s = L.sort_values(col, ascending=False)
@@ -232,6 +234,7 @@ out = {
     "def": [df_row(t, DF.loc[t]) for t in DF.index],
     "matchups": sorted(matchups, key=lambda x: -(x["pass_edge"]+x["run_edge"])),
     "leans": {"rb": rank_leans("rb","off"), "pass": rank_leans("pas","off"), "dst": rank_leans("dst","opp")},
+    "team_adj": team_adj,
 }
 import datetime
 out["generated"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
