@@ -227,7 +227,7 @@ def main():
                 elif tf<=0.955: why.append("PFF: weak route grade")
         trend=round(r["l3"]-r["std"],1)                       # + = heating up
         hot = r["gp"]>=1 and r["l3"]>=12 and r["l3"]>r["base"]*1.3
-        if hot: why.insert(0,"🔥 trending up")
+        if hot: why.insert(0,"trending up")     # no emoji — the UI adds the flame icon (SVG) where it wants it
         # ---- REAL ESPN ownership (+ weekly change); synthetic only if ESPN has no row ----
         eo=OWN.get(norm(r["name"])); chg=0.0
         if eo is not None: own=int(round(eo["own"])); chg=eo["chg"]
