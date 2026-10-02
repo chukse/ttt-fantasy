@@ -239,6 +239,21 @@ def main():
                 bumped+=1
             break
     print(f"[roll] vacated-opportunity bumps: {bumped}")
+    # ---- STALE BASE-ONLY FIX: a player with 0 games this season isn't a preseason stud — he's a
+    #      backup or inactive. Keeping his preseason number is why names like Richardson stay high.
+    if wk>=3 and depth:
+        staled=0
+        for w in week:
+            if w["gp"]>0 or w.get("oppUp"): continue       # played, or inheriting a role via next-man-up
+            k=norm(w["name"]); lst=depth.get((w["team"],w["pos"]),[])
+            rank=lst.index(k) if k in lst else 99
+            if rank>=1:                                     # backup (or off the depth chart) — slash hard
+                w["proj"]=round(max(2.0, w["base"]*0.22),1); w["why"]="depth backup — not active"
+            else:                                           # listed starter, 0 games = hurt/returning — discount
+                w["proj"]=round(w["proj"]*0.55,1); w["why"]=("hasn't played yet — monitor; "+w.get("why","")).strip("; ")
+            w["delta"]=round(w["proj"]-w["base"],1); w["matchup"]="tough"
+            staled+=1
+        print(f"[roll] 0-game backup downgrades: {staled}")
     week=sorted(week,key=lambda x:-x["proj"])[:450]
     json.dump(week,open(os.path.join(DATA,"week.json"),"w"))
     hyb="hybrid ML+shrinkage" if model is not None else "shrinkage"
