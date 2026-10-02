@@ -28,14 +28,17 @@ def deploy(path, msg):
                         "--input","/tmp/_rf.json","--jq",".commit.html_url"], capture_output=True, text=True)
     print(f"  deployed {path}")
 
-ok  = run("1/3 projections (week.json)", "weekly_update.py")
-ok &= run("2/3 trenches OL/DEF (fresh PFF facets)", "trenches_weekly.py")
-ok &= run("3/3 favorite matchups (pff.json)", "pff_ingest.py")
+r1 = run("1/3 projections (week.json)", "weekly_update.py")
+r2 = run("2/3 trenches OL/DEF (fresh PFF facets)", "trenches_weekly.py")
+r3 = run("3/3 favorite matchups (pff.json)", "pff_ingest.py")
 
-print("\n" + ("ALL FACETS REFRESHED" if ok else "SOME FACETS FAILED — check above"))
-if "--deploy" in sys.argv and ok:
-    print("\n=== deploying data to GitHub Pages ===")
-    deploy("data/week.json",     "data: weekly refresh — projections/injuries/lineup [refresh_all]")
-    deploy("data/trenches.json", "data: weekly refresh — trenches [refresh_all]")
-    deploy("data/pff.json",      "data: weekly refresh — favorite matchups [refresh_all]")
-    print("done.")
+print("\n" + ("ALL FACETS REFRESHED" if (r1 and r2 and r3) else "SOME FACETS FAILED — check above"))
+if "--deploy" in sys.argv:
+    print("\n=== deploying what succeeded (per-facet, so one failure never blocks the rest) ===")
+    if r1: deploy("data/week.json",     "data: daily refresh — projections/injuries/lineup [refresh_all]")
+    if r2: deploy("data/trenches.json", "data: daily refresh — trenches [refresh_all]")
+    if r3: deploy("data/pff.json",      "data: daily refresh — favorite matchups [refresh_all]")
+    if not (r2 and r3):
+        print("\nNOTE: a PFF facet failed — likely the restish token expired. Re-auth once in an\n"
+              "interactive wsl shell: `restish pff passing --league nfl --season 2026 --week 1`\n"
+              "(core projections still deployed fine; they don't need PFF).")
