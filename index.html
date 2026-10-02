@@ -667,7 +667,7 @@ function playerCardHTML(p){
  var pffTxt=''; if(PFF&&PFF.matchups){var fm=PFF.matchups.find(function(m){return nrm(m.name)===nrm(p.name)});if(fm)pffTxt=fm.why;}
  var spark=(p.spark&&p.spark.length>1)?('<div class="pcspark">'+sparkSVG(p.spark,Math.min(230,p.spark.length*36),42,dUp?'var(--up)':'var(--red)')+'<div class="pcsparkl">weekly points</div></div>'):'';
  return '<div class="pch">'+chip(p.pos)+'<div class="pchn"><div class="pchname">'+esc(p.name)+(inj?' <span class="pill '+inj[1]+'">'+inj[0]+'</span>':'')+'</div>'
-   +'<div class="pchm">'+esc(p.team)+' · '+oppTxt(p)+' · '+(connected?(leaguePPR()+' PPR'):'1 PPR')+'</div></div><button class="pcx" onclick="closePlayer()">✕</button></div>'
+   +'<div class="pchm">'+esc(p.team)+' · '+oppTxt(p)+(p.injn?' · <b style="color:var(--red)">'+esc(p.injn)+'</b>':' · '+(connected?(leaguePPR()+' PPR'):'1 PPR'))+'</div></div><button class="pcx" onclick="closePlayer()">✕</button></div>'
   +'<div class="pcbig">'+pj+'<small>proj</small>'+(Math.abs(p.delta||0)>=0.1?' <span class="'+(dUp?'pcup':'pcdn')+'">'+(dUp?'▲ +':'▼ ')+p.delta+' vs base</span>':'')+'</div>'
   +spark
   +'<div class="pcgrid">'+pcStat('Season avg',(p.base!=null?p.base:'—'))+pcStat('Last 3',(p.gp>0?p.form:'—'))
