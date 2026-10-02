@@ -339,6 +339,21 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 .tstat{background:var(--panel2,#14171D);border:1px solid var(--line);border-radius:7px;padding:8px 10px}
 .tstat .tl{font-size:11px;color:var(--faint);margin-bottom:3px}
 .tstat .tv{font-family:var(--mono);font-weight:800;font-size:16px}
+/* Trenches sub-view */
+.trrow{display:flex;align-items:flex-start;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:6px}
+.tredge{font-family:var(--mono);font-weight:800;font-size:15px;min-width:46px;text-align:right;padding-top:1px}
+.tredge.up{color:var(--up,#24D08A)} .tredge.dn{color:var(--red)}
+.trmid{flex:1;min-width:0}
+.trname{font-size:14px;font-weight:700;line-height:1.2}
+.trwhy{color:var(--dim);font-size:11.5px;margin-top:2px;font-family:var(--mono)}
+.trlbl{font-family:var(--mono);font-size:11px;font-weight:800;letter-spacing:1px;margin:7px 0 5px}
+.trlbl.up{color:var(--up,#24D08A)} .trlbl.dn{color:var(--red)}
+.trboard{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.brow{display:flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.brk{font-family:var(--mono);font-weight:800;font-size:13px;color:var(--faint);min-width:18px;text-align:center}
+.bteam{font-weight:700;font-size:13px;min-width:36px}
+.bsub{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:auto;white-space:nowrap}
+@media (max-width:420px){.trboard{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.ticker-track,.flash-up,.flash-dn{animation:none}}
 /* ===== DESKTOP: sidebar rail + full-width header + fluid content ===== */
 @media (min-width:920px){
@@ -541,14 +556,23 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
  <div class="mhead">
   <img class="towel-logo" src="./logo.png" alt="Throw in the Towel" onload="var w=document.getElementById('wm');if(w)w.style.display='none'" onerror="this.style.display='none'">
   <div id="wm" class="wordmark">THROW<span>IN THE</span>TOWEL</div>
-  <h2 style="margin-top:10px">Favorite Matchups</h2>
-  <div class="sub" id="matchSub">The spots we'd chase this week — where PFF scheme + coverage grades tilt the field.</div>
+  <div class="subtabs" style="margin-top:12px;justify-content:center">
+   <div class="pf on" id="mvt-fav" onclick="mvTab('fav')">Favorites</div>
+   <div class="pf" id="mvt-tr" onclick="mvTab('tr')">Trenches</div>
+  </div>
  </div>
- <div id="matchBoard"></div>
- <div class="ct" style="padding:16px 2px 8px">Streaming defenses <span class="mini">soft offense × pass rush</span></div>
- <div id="matchStreams"></div>
- <div class="ct" style="padding:16px 2px 8px">Scheme explorer <span class="mini">any team's offense &amp; defense</span></div>
- <div id="matchExplorer"></div>
+ <div id="mv-fav">
+  <div class="sub" id="matchSub" style="margin-bottom:12px">The spots we'd chase this week — where PFF scheme + coverage grades tilt the field.</div>
+  <div id="matchBoard"></div>
+  <div class="ct" style="padding:16px 2px 8px">Streaming defenses <span class="mini">soft offense × pass rush</span></div>
+  <div id="matchStreams"></div>
+  <div class="ct" style="padding:16px 2px 8px">Scheme explorer <span class="mini">any team's offense &amp; defense</span></div>
+  <div id="matchExplorer"></div>
+ </div>
+ <div id="mv-tr" style="display:none">
+  <div class="sub" id="trSub" style="margin-bottom:12px">Your line vs their front — start/sit by matchup, plus the OL &amp; defense boards.</div>
+  <div id="trBody"></div>
+ </div>
 </section>
 
 <nav class="nav" id="nav">
@@ -563,7 +587,7 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 
 <script>
 const F=x=>fetch('./data/'+x+'.json?_='+Date.now()).then(r=>r.json());
-let DRAFT=[],WEEK=[],LINEUP={},META={},PFF=null;
+let DRAFT=[],WEEK=[],LINEUP={},META={},PFF=null,TR=null;
 let dS=JSON.parse(localStorage.getItem("ttt_draft")||"{}"),dHist=JSON.parse(localStorage.getItem("ttt_hist")||"[]"),dFilt="ALL";
 const esc=s=>(s||"").replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const chip=p=>`<div class="pos-chip b${p}">${p}</div>`;
@@ -599,8 +623,8 @@ function renderMovers(){
  el.innerHTML=`<div class="mv-col up"><h3>▲ Rising</h3>${up.map(row).join('')||'<div class="mini" style="padding:6px">—</div>'}</div><div class="mv-col dn"><h3>▼ Falling</h3>${dn.map(row).join('')||'<div class="mini" style="padding:6px">—</div>'}</div>`;
 }
 
-Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk'),F('adp').catch(()=>({})),F('fpros').catch(()=>({})),F('pff').catch(()=>null)]).then(([d,w,l,m,x,a,fp,pff])=>{
- DRAFT=d;WEEK=w;LINEUP=l;META=m;XWALK=x;ADP=a||{};FPROS=fp||{};PFF=pff||null;
+Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk'),F('adp').catch(()=>({})),F('fpros').catch(()=>({})),F('pff').catch(()=>null),F('trenches').catch(()=>null)]).then(([d,w,l,m,x,a,fp,pff,tr])=>{
+ DRAFT=d;WEEK=w;LINEUP=l;META=m;XWALK=x;ADP=a||{};FPROS=fp||{};PFF=pff||null;TR=tr||null;
  document.getElementById('wklbl').textContent='WEEK '+m.week;
  document.getElementById('statusbadge').textContent=m.status;
  buildMaps();
@@ -1256,7 +1280,57 @@ function chatAnswer(q){
 
 /* ---------- FAVORITE MATCHUPS (PFF) ---------- */
 function STARS(n){n=Math.max(0,Math.min(5,Math.round(n||0)));return '★★★★★'.slice(0,n)+'☆☆☆☆☆'.slice(0,5-n);}
-function openMatchups(){ showScreen('matchups','week'); }
+function openMatchups(){ mvTab('fav'); showScreen('matchups','week'); }
+function mvTab(t){
+ var f=document.getElementById('mv-fav'), r=document.getElementById('mv-tr');
+ if(f)f.style.display=t==='fav'?'block':'none'; if(r)r.style.display=t==='tr'?'block':'none';
+ document.getElementById('mvt-fav').classList.toggle('on',t==='fav');
+ document.getElementById('mvt-tr').classList.toggle('on',t==='tr');
+ if(t==='tr')renderTrenches();
+}
+function trLeanRow(x,kind){
+ var good=x.edge>=0;
+ var sub = kind==='rb' ? `OL run #${x.a} vs run-D #${x.b}`
+         : kind==='pass' ? `OL pass #${x.a} vs pass-D #${x.b}`
+         : `D #${x.b} · their OL pass #${x.a}`;
+ var tag = kind==='dst' ? 'DST · vs ' : '· vs ';
+ return `<div class="trrow"><div class="tredge ${good?'up':'dn'}">${good?'+':''}${x.edge}</div>`
+  +`<div class="trmid"><div class="trname">${esc(x.team)} <span class="mini">${tag}${esc(x.opp)}</span></div>`
+  +`<div class="trwhy">${sub}</div></div></div>`;
+}
+function boardHTML(list,kind){
+ return '<div class="trboard">'+list.map(function(r){
+   var adj = (kind==='def'&&r.adj_rank)?` A${r.adj_rank}`:'';
+   return `<div class="brow"><div class="brk">${r.rank}</div><div class="bteam">${esc(r.team)}</div>`
+     +`<div class="bsub">P${r.pass_rank} R${r.run_rank}${adj}</div></div>`;
+ }).join('')+'</div>';
+}
+function renderTrenches(){
+ var el=document.getElementById('trBody'); if(!el)return;
+ if(!TR||!TR.leans){el.innerHTML='<div class="note">Trench rankings refresh each week once the PFF sync runs.</div>';return;}
+ var sub=document.getElementById('trSub'); if(sub)sub.textContent=`Week ${TR.week} — your line vs their front. Start/sit by matchup, plus the OL & defense 1-32.`;
+ var pro=isPro(), FREE=3;
+ function cat(title,key,kind){
+   var d=TR.leans[key]; if(!d)return '';
+   var h=`<div class="ct" style="padding:14px 2px 7px">${title}</div>`;
+   h+='<div class="trlbl up">Start</div>'+d.start.slice(0,pro?8:FREE).map(function(x){return trLeanRow(x,kind);}).join('');
+   if(pro) h+='<div class="trlbl dn">Sit</div>'+d.sit.slice(0,5).map(function(x){return trLeanRow(x,kind);}).join('');
+   return h;
+ }
+ var html=cat('Running backs — run-block edge','rb','rb')
+         +cat('Passing game — protection + pass D','pass','pass')
+         +cat('Defense / DST','dst','dst');
+ if(pro){
+   html+='<div class="ct" style="padding:18px 2px 7px">Offensive line 1-32 <span class="mini">pass / run</span></div>'+boardHTML(TR.ol,'ol');
+   html+='<div class="ct" style="padding:18px 2px 7px">Defense 1-32 <span class="mini">opponent-adjusted</span></div>'+boardHTML(TR['def'],'def');
+ } else {
+   html+=`<div class="mlock" style="margin-top:16px"><div class="mlock-blur">${boardHTML(TR.ol.slice(0,6),'ol')}</div>`
+    +`<div class="mlock-cta"><div class="lockbolt"><svg class="ic-svg" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bolt"/></svg>PRO</div>`
+    +`<h3>Full trench board</h3><p>All start/sit leans (incl. who to bench) + the OL &amp; defense 1-32 rankings.</p>`
+    +`<button class="cta" onclick="gateOpen()">Go Pro — from $4.99</button></div></div>`;
+ }
+ el.innerHTML=html;
+}
 function renderMatchTeaser(){
  const el=document.getElementById('matchTeaser'); if(!el)return;
  if(!PFF||!PFF.matchups||!PFF.matchups.length){el.style.display='none';return;}
