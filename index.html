@@ -634,6 +634,7 @@ Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk'),F('adp').
  buildMaps();
  if(CONN&&CONN.players){ applyConnectedRoster(); }        // personalize if already connected
  renderWeek();renderWaiver();renderTeam();renderDraft();initDraftUI();initMockSetup();initPlanSetup();
+ if(CONN&&CONN.leagueId)setTimeout(function(){refreshLeague(true);},400);   // silently pull the latest roster on open
  renderTicker();
  renderMatchTeaser();
  handleYahooRedirect();
@@ -729,7 +730,9 @@ function pickESPN(teamId){
  let playoffStart=15;if(data.settings&&data.settings.scheduleSettings&&data.settings.scheduleSettings.matchupPeriodCount)playoffStart=data.settings.scheduleSettings.matchupPeriodCount+1;
  const cur=META.week||1,schedule=[];
  (data.schedule||[]).forEach(m=>{const wk=m.matchupPeriodId;if(wk>=cur&&wk<playoffStart&&m.home&&m.away&&m.home.teamId!=null&&m.away.teamId!=null&&(m.winner==null||m.winner==='UNDECIDED'))schedule.push({week:wk,a:m.home.teamId,b:m.away.teamId});});
- saveConn({platform:'ESPN',team:espnTeamName(team),size:data.teams.length,roster,rostered:[...taken],teams,records,schedule,playoffStart});
+ const c=_espnCreds||{};
+ saveConn({platform:'ESPN',team:espnTeamName(team),size:data.teams.length,roster,rostered:[...taken],teams,records,schedule,playoffStart,
+           leagueId:c.lg,s2:c.s2,swid:c.swid,teamId:teamId});
 }
 
 // ---- YAHOO (OAuth via worker) ----
@@ -837,6 +840,23 @@ function applyConnectedRoster(){
  if(roster.length){LINEUP=optimize(roster);}
 }
 function setPPR(v){ if(CONN){ CONN.ppr=+v; saveLeagues(); applyConnectedRoster(); renderWeek(); renderTeam(); } }
+async function refreshLeague(silent){
+ if(!CONN||!CONN.leagueId){ if(!silent)toast('Reconnect this league once to enable live refresh.'); return; }
+ var btn=document.getElementById('refreshBtn'); if(btn){btn.textContent='Refreshing…';btn.disabled=true;}
+ try{
+  if(CONN.platform==='ESPN'){
+   _espnCreds={lg:CONN.leagueId,s2:CONN.s2||'',swid:CONN.swid||''};
+   var q='?leagueId='+CONN.leagueId+'&season=2026'+(CONN.s2?'&s2='+encodeURIComponent(CONN.s2)+'&swid='+encodeURIComponent(CONN.swid):'');
+   var data=await fetch(PROXY+q).then(function(r){return r.json();});
+   if(!data||!data.teams||!data.teams.length)throw new Error('espn');
+   _espnData=data; pickESPN(CONN.teamId);                 // re-maps roster + saveConn (keeps ppr & creds)
+  } else if(CONN.platform==='Sleeper'){
+   _slUser=CONN.slUser||_slUser; await pickSleeper(CONN.leagueId,CONN.team,CONN.size);
+  } else { if(!silent)toast('This league type can\'t auto-refresh — edit it manually.'); return; }
+  if(!silent)toast('✓ Roster updated from '+CONN.platform+'.');
+ }catch(e){ if(!silent)toast('Refresh failed — your cookies may have expired; reconnect the league.'); }
+ finally{ var b=document.getElementById('refreshBtn'); if(b){b.textContent='↻ Refresh roster';b.disabled=false;} }
+}
 
 // --- connect flow UI ---
 let cPlat='sleeper';
@@ -854,6 +874,7 @@ function renderTeam(){
    +`<div class="score-row"><span>Scoring</span><select id="pprSel" onchange="setPPR(this.value)">`
    +[['0','Standard'],['0.5','Half-PPR'],['1','Full PPR'],['1.5','1.5-PPR'],['2','2-PPR']].map(o=>`<option value="${o[0]}"${(+o[0]===leaguePPR())?' selected':''}>${o[1]}</option>`).join('')
    +`</select><span class="mini">your lineup &amp; start/sit use this</span></div>`
+   +(CONN.leagueId?`<button class="cta" id="refreshBtn" style="margin-bottom:8px" onclick="refreshLeague()">↻ Refresh roster from ${esc(CONN.platform)}</button>`:'<div class="note" style="margin-bottom:8px">Reconnect this league once to enable one-tap roster refresh.</div>')
    +`<button class="cta" style="background:var(--card2);color:var(--dim)" onclick="disconnect()">Disconnect ${esc(CONN.team)}</button>`;
   const roster=CONN.players.map(n=>WEEK.find(p=>p.name===n)).filter(Boolean).sort((a,b)=>b.proj-a.proj);
   document.getElementById('rosterCard').style.display='';
@@ -894,6 +915,7 @@ function renderTeam(){
  if(cPlat=='manual')manRender();
 }
 function saveConn(res){const ex=LEAGUES.find(l=>l.platform===res.platform&&l.team===res.team);const lg={platform:res.platform,team:res.team,size:res.size,players:res.roster.map(p=>p.name),rostered:res.rostered||[],teams:res.teams||[],records:res.records||null,schedule:res.schedule||null,playoffStart:res.playoffStart||15,ppr:(typeof res.ppr==='number'?res.ppr:(ex&&typeof ex.ppr==='number'?ex.ppr:1))};
+ ['leagueId','s2','swid','teamId','slUser'].forEach(k=>{ if(res[k]!=null&&res[k]!=='')lg[k]=res[k]; else if(ex&&ex[k]!=null)lg[k]=ex[k]; });   // keep creds so we can re-fetch
  const i=LEAGUES.findIndex(l=>l.platform===lg.platform&&l.team===lg.team);
  if(i<0&&!isPro()&&LEAGUES.length>=1){ addingLeague=false; renderTeam(); gateOpen(); return; }   // free = 1 league
  if(i>=0){LEAGUES[i]=lg;ACTIVE=i;}else{LEAGUES.push(lg);ACTIVE=LEAGUES.length-1;}
@@ -934,10 +956,12 @@ async function pickSleeper(leagueId,name,size){
    all.forEach(({w,d})=>{if(!Array.isArray(d))return;const bym={};d.forEach(m=>{if(m&&m.matchup_id!=null)(bym[m.matchup_id]=bym[m.matchup_id]||[]).push(m.roster_id);});
     Object.values(bym).forEach(pair=>{if(pair.length===2)schedule.push({week:w,a:pair[0],b:pair[1]});});});
   }catch(_){}
-  saveConn({platform:'Sleeper',team:name,size,roster,rostered:[...taken],teams,records,schedule,playoffStart});
+  saveConn({platform:'Sleeper',team:name,size,roster,rostered:[...taken],teams,records,schedule,playoffStart,leagueId:leagueId,slUser:_slUser});
  }catch(err){e.textContent=err.message;}}
+let _espnCreds=null;
 async function doESPN(){
  const lg=document.getElementById('esLg').value.trim();const s2=document.getElementById('esS2').value.trim();const swid=document.getElementById('esSwid').value.trim();
+ _espnCreds={lg:lg,s2:s2,swid:swid};
  const e=document.getElementById('connErr');if(!lg){e.textContent='enter your league ID';return;}
  if(!PROXY){e.textContent='ESPN proxy not set up yet — deploy the Cloudflare Worker first.';return;}
  e.innerHTML='connecting to ESPN…';
