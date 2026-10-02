@@ -358,6 +358,37 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 .score-row>span:first-child{font-size:13px;font-weight:700;color:var(--ink)}
 .score-row select{background:var(--panel2,#14171D);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 10px;font-size:14px;font-family:var(--ui)}
 .score-row .mini{color:var(--faint)}
+/* waiver sort row + tap affordance */
+.wsort{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap}
+.wsort>span{font-size:12px;color:var(--dim);font-weight:700}
+.wsort select{background:var(--panel2,#14171D);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 9px;font-size:13px;font-family:var(--ui)}
+.wchk{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--dim);cursor:pointer}
+.wchk input{accent-color:var(--red)}
+.row.tap{cursor:pointer;transition:background .12s}
+.row.tap:active{background:var(--panel2,#14171D)}
+.pill.out{background:rgba(255,59,71,.16);color:var(--red);border:1px solid rgba(255,59,71,.4)}
+.pill.dbt,.pill.q{background:rgba(245,165,36,.14);color:var(--amber,#F5A524);border:1px solid rgba(245,165,36,.4)}
+/* player card */
+#playerSheet{align-items:flex-end;justify-content:center;padding:0}
+.pcard{background:var(--panel);border:1px solid var(--line2,var(--line));border-top-left-radius:18px;border-top-right-radius:18px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;padding:20px 16px calc(22px + env(safe-area-inset-bottom));align-self:flex-end;box-sizing:border-box}
+@media(min-width:560px){.pcard{align-self:center;border-radius:16px}}
+.pch{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+.pchn{flex:1;min-width:0}
+.pchname{font-size:19px;font-weight:800;line-height:1.15}
+.pchm{color:var(--dim);font-size:13px;margin-top:3px}
+.pcx{background:var(--panel2,#14171D);border:1px solid var(--line);color:var(--dim);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;flex-shrink:0}
+.pcbig{font-family:var(--mono);font-weight:800;font-size:40px;line-height:1;margin-bottom:4px}
+.pcbig small{font-size:12px;color:var(--faint);font-weight:600;margin-left:4px}
+.pcbig .pcup{font-family:var(--ui);font-size:13px;font-weight:700;color:var(--up,#24D08A);margin-left:8px}
+.pcbig .pcdn{font-family:var(--ui);font-size:13px;font-weight:700;color:var(--red);margin-left:8px}
+.pcspark{margin:12px 0 4px}.pcsparkl{font-size:10.5px;color:var(--faint);font-family:var(--mono);margin-top:2px}
+.pcgrid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px;margin:14px 0}
+.pcs{background:var(--panel2,#14171D);border:1px solid var(--line);border-radius:8px;padding:8px 6px;text-align:center}
+.pcl{font-size:10px;color:var(--faint);margin-bottom:3px;line-height:1.1}
+.pcv{font-family:var(--mono);font-weight:800;font-size:15px}
+.pcwhy{font-size:13px;color:var(--dim);line-height:1.45;margin:4px 0;background:var(--panel2,#14171D);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.pcnote{font-size:12.5px;color:var(--dim);margin:6px 0;line-height:1.4}
+@media(max-width:440px){.pcgrid{grid-template-columns:1fr 1fr}}
 @media (prefers-reduced-motion:reduce){.ticker-track,.flash-up,.flash-dn{animation:none}}
 /* ===== DESKTOP: sidebar rail + full-width header + fluid content ===== */
 @media (min-width:920px){
@@ -431,6 +462,9 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
   <button class="cta ghost" style="border:none;background:none;color:var(--faint)" onclick="gateClose()">Maybe later</button>
  </div>
 </div>
+<div class="sheet" id="playerSheet" onclick="if(event.target===this)closePlayer()">
+ <div class="pcard" id="playerCard"></div>
+</div>
 
 <!-- THIS WEEK -->
 <section class="screen on" id="s-week">
@@ -456,6 +490,7 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
  <h2>Waiver Wire</h2><div class="sub">Ranked pickups with roster availability.</div>
  <div class="note">The <b>% owned</b> is your chance a player's already taken. Connect your ESPN league to filter this to only players <b>available in your league</b>.</div>
  <div class="tabs" id="wtabs"></div>
+ <div class="wsort" id="wsort"></div>
  <div class="card"><div id="waiverList"></div></div>
 </section>
 
@@ -599,6 +634,32 @@ const ICON=(n,s)=>`<svg class="ic-svg" width="${s||16}" height="${s||16}" fill="
 function ownPill(o){const c=o>=70?'lo':o>=35?'md':'hi';return `<span class="pill ${c}">${o}%</span>`}
 function mBadge(p){if(!p.matchup||p.matchup=='even')return '';const g=p.matchup=='good';return `<span class="pill ${g?'hi':'lo'}" style="margin-left:6px">${g?'▲':'▼'} ${p.delta>0?'+':''}${p.delta}</span>`}
 function injBadge(p){const m={O:['OUT','lo'],D:['DBT','md'],Q:['Q','md']}[p.inj];return m?`<span class="pill ${m[1]}" style="margin-left:6px">${m[0]}</span>`:''}
+/* ---------- PLAYER CARD (tap any player) ---------- */
+function openPlayer(name){ var p=WEEK.find(function(w){return w.name===name})||WEEK.find(function(w){return nrm(w.name)===nrm(name)}); if(!p)return;
+ document.getElementById('playerCard').innerHTML=playerCardHTML(p); document.getElementById('playerSheet').style.display='flex'; }
+function closePlayer(){document.getElementById('playerSheet').style.display='none';}
+function pcStat(l,v){return '<div class="pcs"><div class="pcl">'+l+'</div><div class="pcv">'+v+'</div></div>';}
+function playerCardHTML(p){
+ var connected=CONN&&CONN.players, pj=connected?pxProj(p):p.proj;
+ var inj={O:['OUT','lo'],D:['DOUBTFUL','md'],Q:['QUESTIONABLE','md']}[p.inj], dUp=(p.delta||0)>0;
+ var trTxt=''; if(TR&&TR.team_adj&&TR.team_adj[p.team]){var t=TR.team_adj[p.team];var e=(p.pos==='RB')?t.rb:(['QB','WR','TE'].indexOf(p.pos)>=0?t.pass:null);
+   if(e!=null)trTxt=(e>=0?'Favorable':'Tough')+' trench matchup ('+(e>=0?'+':'')+e+')';}
+ var pffTxt=''; if(PFF&&PFF.matchups){var fm=PFF.matchups.find(function(m){return nrm(m.name)===nrm(p.name)});if(fm)pffTxt=fm.why;}
+ var spark=(p.spark&&p.spark.length>1)?('<div class="pcspark">'+sparkSVG(p.spark,Math.min(230,p.spark.length*36),42,dUp?'var(--up)':'var(--red)')+'<div class="pcsparkl">weekly points</div></div>'):'';
+ return '<div class="pch">'+chip(p.pos)+'<div class="pchn"><div class="pchname">'+esc(p.name)+(inj?' <span class="pill '+inj[1]+'">'+inj[0]+'</span>':'')+'</div>'
+   +'<div class="pchm">'+esc(p.team)+' · '+oppTxt(p)+' · '+(connected?(leaguePPR()+' PPR'):'1 PPR')+'</div></div><button class="pcx" onclick="closePlayer()">✕</button></div>'
+  +'<div class="pcbig">'+pj+'<small>proj</small>'+(Math.abs(p.delta||0)>=0.1?' <span class="'+(dUp?'pcup':'pcdn')+'">'+(dUp?'▲ +':'▼ ')+p.delta+' vs base</span>':'')+'</div>'
+  +spark
+  +'<div class="pcgrid">'+pcStat('Season avg',(p.base!=null?p.base:'—'))+pcStat('Last 3',(p.gp>0?p.form:'—'))
+   +pcStat('Trend',((p.trend>0?'+':'')+(p.trend!=null?p.trend:'—')))+pcStat('Games',(p.gp!=null?p.gp:'—'))
+   +pcStat('% Rostered',p.own+'%'+(p.chg>=0.5?' ▲':p.chg<=-0.5?' ▼':''))+pcStat('Catches/g',(p.rec!=null?p.rec:'—'))
+   +pcStat('ML model',(p.ml!=null?p.ml:'—'))+pcStat('Matchup',(p.matchup||'even'))+'</div>'
+  +(p.why?'<div class="pcwhy"><b>Why:</b> '+esc(p.why)+'</div>':'')
+  +(pffTxt?'<div class="pcnote">◆ PFF: '+esc(pffTxt)+'</div>':'')
+  +(trTxt?'<div class="pcnote">▣ '+esc(trTxt)+'</div>':'')
+  +'<button class="cta ghost" style="margin-top:12px" onclick="askAbout(\''+esc(p.name).replace(/'/g,"\\'")+'\')">Ask the Towel about '+esc(p.name.split(' ').slice(-1)[0])+' →</button>';
+}
+function askAbout(name){ closePlayer(); var q=document.getElementById('chatQ'); if(q)q.value='How should I play '+name+' this week?'; showScreen('chat'); }
 function oppTxt(p){const c=p.matchup=='good'?'--pos':p.matchup=='tough'?'--neg':'--dim';return `<span style="color:var(${c})">${p.opp||''}</span>`}
 /* ---------- STOCK-TICKER UI ---------- */
 function sparkSVG(vals,w,h,color){
@@ -642,7 +703,7 @@ Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk'),F('adp').
 });
 
 /* ---------- THIS WEEK ---------- */
-function pRow(p,slot){return `<div class="row"><div class="slot">${slot||''}</div>${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${injBadge(p)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}</div></div><div class="proj">${pxProj(p)}<small>proj</small></div></div>`}
+function pRow(p,slot){return `<div class="row tap" data-pl="${encodeURIComponent(p.name)}"><div class="slot">${slot||''}</div>${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${injBadge(p)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}</div></div><div class="proj">${pxProj(p)}<small>proj</small></div></div>`}
 function renderWeek(){
  const connected=CONN&&CONN.players;
  document.getElementById('heroCap').innerHTML=connected?`your optimal lineup · ${esc(CONN.team)}`:`demo team — connect your league on the Team tab for yours`;
@@ -668,25 +729,29 @@ function renderWeek(){
 }
 
 /* ---------- WAIVER ---------- */
-let wFilt="ALL";
+let wFilt="ALL",wSort="proj",wHideInj=false;
+function setWSort(v){wSort=v;renderWaiver();}
+function toggleHurt(){wHideInj=!wHideInj;renderWaiver();}
 function renderWaiver(){
  const tb=document.getElementById('wtabs');tb.innerHTML='';
  ["ALL","RB","WR","TE","QB"].forEach(t=>{const b=document.createElement('div');b.className='pf'+(t==wFilt?' on':'');b.textContent=t;b.onclick=()=>{wFilt=t;renderWaiver()};tb.appendChild(b)});
- // league-specific: only players actually FREE in your league; else fall back to global ownership
+ // sort + hide-injured controls
+ const ws=document.getElementById('wsort');
+ if(ws){const SL={proj:'Projection',own:'Most available',form:'L3 form',trend:'Add trend'};
+  ws.innerHTML='<span>Sort</span><select onchange="setWSort(this.value)">'+Object.keys(SL).map(k=>`<option value="${k}"${k===wSort?' selected':''}>${SL[k]}</option>`).join('')+'</select>'
+   +`<label class="wchk"><input type="checkbox" ${wHideInj?'checked':''} onchange="toggleHurt()"> Hide injured</label>`;}
+ const pj=p=>(CONN&&CONN.players)?pxProj(p):p.proj;
+ const SORTS={proj:(a,b)=>pj(b)-pj(a),own:(a,b)=>(a.own||0)-(b.own||0),form:(a,b)=>(b.form||0)-(a.form||0),trend:(a,b)=>(b.chg||0)-(a.chg||0)};
  const noteEl=document.querySelector('#s-waiver .note');
- let list;
- if(CONN&&CONN.rostered&&CONN.rostered.length){
-  const taken=new Set(CONN.rostered);
-  list=WEEK.filter(p=>(wFilt=="ALL"||p.pos==wFilt)&&!taken.has(p.name)&&p.inj!=='O').sort((a,b)=>b.proj-a.proj).slice(0,40);
-  if(noteEl)noteEl.innerHTML=`✓ <b>Available in your league</b> (${esc(CONN.team)}) — ranked by our weekly model + scheme edge.`;
- }else{
-  list=WEEK.filter(p=>(wFilt=="ALL"||p.pos==wFilt)&&p.own<75&&p.inj!=='O').sort((a,b)=>b.proj-a.proj).slice(0,40);
-  if(noteEl)noteEl.innerHTML='<b>% rostered</b> is live ESPN data (▲/▼ = this week\'s add/drop trend). <b>L3</b> is last-3-week scoring. Connect your league on the <b>Team</b> tab to filter to only players <b>free in your league</b>.';
- }
+ const connected=CONN&&CONN.rostered&&CONN.rostered.length;
+ const taken=connected?new Set(CONN.rostered):null;
+ let list=WEEK.filter(p=>(wFilt=="ALL"||p.pos==wFilt)&&p.inj!=='O'&&(!wHideInj||!p.inj)&&(connected?!taken.has(p.name):p.own<75));
+ list=list.sort(SORTS[wSort]||SORTS.proj).slice(0,40);
+ if(noteEl)noteEl.innerHTML=connected?`✓ <b>Available in ${esc(CONN.team)}</b> — tap any player for the full card. Ranked by our model (your ${leaguePPR()}-PPR scoring).`:'<b>% rostered</b> is live ESPN data (▲/▼ = add/drop trend). <b>Tap any player</b> for the full card. Connect your league on the <b>Team</b> tab to filter to players <b>free in your league</b>.';
  document.getElementById('waiverList').innerHTML=list.map(p=>{
   const hot=(p.gp||0)>=1&&(p.form||0)>=12&&(p.form||0)>(p.base||0)*1.3;
   const formCol=(p.form!==undefined&&p.gp>0)?`<div class="own" style="min-width:40px"><b class="${hot?'':''}" style="${hot?'color:var(--pos)':''}">${p.form}</b>L3</div>`:'';
-  return `<div class="row">${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${p.oppUp?' <span class="pill hi" style="color:var(--pos)">▲ OPP +'+p.oppUp+'</span>':''}${hot?' <span class="pill hi" style="color:var(--primary2)">'+ICON('flame',12)+' HOT</span>':''}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}${p.why?' · <span style="color:var(--primary2)">'+esc(p.why)+'</span>':''}</div></div>${formCol}${(p.spark&&p.spark.length>1)?'<div style="padding:0 2px">'+sparkSVG(p.spark,30,17)+'</div>':''}<div class="own"><b>${p.own}%${(p.chg>=0.5)?' <span style="color:var(--pos)">▲</span>':(p.chg<=-0.5)?' <span style="color:#FF3B47">▼</span>':''}</b>rostered</div><div class="proj">${p.proj}<small>proj</small></div></div>`;
+  return `<div class="row tap" data-pl="${encodeURIComponent(p.name)}">${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${injBadge(p)}${p.oppUp?' <span class="pill hi" style="color:var(--pos)">▲ OPP +'+p.oppUp+'</span>':''}${hot?' <span class="pill hi" style="color:var(--primary2)">'+ICON('flame',12)+' HOT</span>':''}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}${p.why?' · <span style="color:var(--primary2)">'+esc(p.why)+'</span>':''}</div></div>${formCol}${(p.spark&&p.spark.length>1)?'<div style="padding:0 2px">'+sparkSVG(p.spark,30,17)+'</div>':''}<div class="own"><b>${p.own}%${(p.chg>=0.5)?' <span style="color:var(--pos)">▲</span>':(p.chg<=-0.5)?' <span style="color:#FF3B47">▼</span>':''}</b>rostered</div><div class="proj">${p.proj}<small>proj</small></div></div>`;
  }).join('')||'<div class="row"><div class="pn m" style="color:var(--dim);padding:6px">No targets in this filter.</div></div>';
 }
 
@@ -1520,5 +1585,8 @@ function showScreen(s,navKey){
 }
 function draftView(v){showScreen(v,'draft');}
 document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;showScreen(b.dataset.s);});
+// tap any player row anywhere -> ESPN-style player card
+document.addEventListener('click',function(e){ if(e.target.closest('button,select,input,a,.star,.pf,.subtabs')) return;
+ var el=e.target.closest('[data-pl]'); if(el){ try{ openPlayer(decodeURIComponent(el.getAttribute('data-pl'))); }catch(_){}} });
 </script>
 </body></html>
