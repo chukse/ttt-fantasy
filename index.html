@@ -978,7 +978,7 @@ function applyConnectedRoster(){
  const roster=CONN.players.map(n=>WEEK.find(p=>p.name===n)).filter(Boolean);
  if(roster.length){LINEUP=optimize(roster);}
 }
-function setPPR(v){ if(CONN){ CONN.ppr=+v; saveLeagues(); applyConnectedRoster(); renderWeek(); renderTeam(); } }
+function setPPR(v){ if(CONN){ CONN.ppr=+v; VALMAP=null; saveLeagues(); applyConnectedRoster(); renderWeek(); renderTeam(); } }
 async function refreshLeague(silent){
  if(!CONN||!CONN.leagueId){ if(!silent)toast('Reconnect this league once to enable live refresh.'); return; }
  var btn=document.getElementById('refreshBtn'); if(btn){btn.textContent='Refreshing…';btn.disabled=true;}
@@ -1124,15 +1124,15 @@ function renderDraft(){
  const be=document.getElementById('best');if(!be)return;be.innerHTML='';
  [["ALL","BEST"],["RB","RB"],["WR","WR"],["TE","TE"],["QB","QB"]].forEach(([pos,l])=>{
   const p=bestAt(pos);const d=document.createElement('div');d.className='bc';d.onclick=()=>p&&drafted(p.name);
-  d.innerHTML=p?`<div class="l ${p.pos}">${l}</div><div class="nm">${esc(p.name)}</div><div class="x">${p.pts} · ${p.pos}${p.pr}</div>`:`<div class="l">${l}</div><div class="nm">—</div>`;
+  d.innerHTML=p?`<div class="l ${p.pos}">${l}</div><div class="nm">${esc(p.name)}</div><div class="x">${leagueSeasonVal(p.name,p.pts)} · ${p.pos}${p.pr}</div>`:`<div class="l">${l}</div><div class="nm">—</div>`;
   be.appendChild(d);
  });
  const q=(document.getElementById('q').value||'').toLowerCase();
  document.getElementById('draftList').innerHTML=DRAFT.filter(p=>(dFilt=="ALL"||p.pos==dFilt)&&(!q||p.name.toLowerCase().includes(q))).map(p=>
   `<div class="row ${avail(p)?'':'gone'}" onclick="drafted('${p.name.replace(/'/g,"\\'")}')">
     <div class="slot">${p.rk}</div>${chip(p.pos)}
-    <div class="pn"><div class="n">${esc(p.name)}${p.rook?' <span class="TE" style="font-size:10px">R</span>':''}</div><div class="m"><span class="${p.pos}">${p.pos}${p.pr}</span> · ${p.team} · ${p.ppg} ppg</div></div>
-    <div class="proj">${p.pts}<small>pts</small></div>
+    <div class="pn"><div class="n">${esc(p.name)}${p.rook?' <span class="TE" style="font-size:10px">R</span>':''}</div><div class="m"><span class="${p.pos}">${p.pos}${p.pr}</span> · ${p.team} · ${leaguePPG(p.name,p.ppg)} ppg</div></div>
+    <div class="proj">${leagueSeasonVal(p.name,p.pts)}<small>pts</small></div>
     <div class="star ${dS[p.name]==2?'on':''}" onclick="toggleMine(event,'${p.name.replace(/'/g,"\\'")}')">★</div>
    </div>`).join('');
 }
@@ -1265,9 +1265,12 @@ function generatePlan(){
 
 /* ---------- SHARED VALUE (board = projected season points) ---------- */
 let VALMAP=null;
+function recOf(name){var p=WEEK.find(function(w){return nrm(w.name)===nrm(name)});return p?(p.rec||0):0;}
+function leagueSeasonVal(name,pts){ if(!(CONN&&CONN.players))return Math.round(pts||0); return Math.round((pts||0)+(leaguePPR()-1)*recOf(name)*17); }
+function leaguePPG(name,ppg){ if(!(CONN&&CONN.players))return ppg; return Math.round(((ppg||0)+(leaguePPR()-1)*recOf(name))*10)/10; }
 function valMap(){if(VALMAP)return VALMAP;VALMAP={};
- DRAFT.forEach(p=>{VALMAP[nrm(p.name)]={v:+p.pts||0,pos:p.pos,pr:p.pr||'',rk:p.rk,name:p.name};});
- WEEK.forEach(p=>{const k=nrm(p.name);if(!VALMAP[k])VALMAP[k]={v:Math.round((p.roll||p.proj||0)*16),pos:p.pos,pr:'',rk:p.rk||999,name:p.name};});
+ DRAFT.forEach(p=>{VALMAP[nrm(p.name)]={v:leagueSeasonVal(p.name,+p.pts||0),pos:p.pos,pr:p.pr||'',rk:p.rk,name:p.name};});
+ WEEK.forEach(p=>{const k=nrm(p.name);if(!VALMAP[k])VALMAP[k]={v:Math.round(((p.roll||p.proj||0)+(leaguePPR()-1)*(p.rec||0))*16),pos:p.pos,pr:'',rk:p.rk||999,name:p.name};});
  return VALMAP;}
 function pv(name){return valMap()[nrm(name)]||null;}
 
@@ -1295,7 +1298,7 @@ function tSearch(){
  const hits = q ? pool.filter(p=>p.name.toLowerCase().includes(q)).slice(0,10)
                 : pool.slice().sort((a,b)=>b.pts-a.pts).slice(0,8);   // browse top by value when empty
  const chips='<div class="tabs" style="margin:4px 0 8px">'+['ALL','QB','RB','WR','TE'].map(f=>`<div class="pf${f==trFilt?' on':''}" onclick="trSetFilt('${f}')">${f}</div>`).join('')+'</div>';
- res.innerHTML=chips+(hits.length?hits.map(p=>`<div class="row" style="padding:9px 12px;cursor:pointer" onclick="tAdd('${p.name.replace(/'/g,"\\'")}')">${chip(p.pos)}<div class="pn"><div class="n" style="font-size:14px">${esc(p.name)}</div><div class="m">${p.team} · ${p.pos}${p.pr} · ${Math.round(p.pts)} val</div></div><div class="proj" style="color:var(--primary2)">+</div></div>`).join('') : '<div class="mini" style="padding:8px 4px;color:var(--faint)">No players match.</div>');
+ res.innerHTML=chips+(hits.length?hits.map(p=>`<div class="row" style="padding:9px 12px;cursor:pointer" onclick="tAdd('${p.name.replace(/'/g,"\\'")}')">${chip(p.pos)}<div class="pn"><div class="n" style="font-size:14px">${esc(p.name)}</div><div class="m">${p.team} · ${p.pos}${p.pr} · ${leagueSeasonVal(p.name,p.pts)} val</div></div><div class="proj" style="color:var(--primary2)">+</div></div>`).join('') : '<div class="mini" style="padding:8px 4px;color:var(--faint)">No players match.</div>');
 }
 function tVerdict(){
  const vd=document.getElementById('tradeVerdict'),bd=document.getElementById('tBreakdown');
@@ -1413,7 +1416,7 @@ function buildChatContext(){
  const av=WEEK.filter(p=>(taken?!taken.has(p.name):p.own<75)&&p.inj!=='O').sort((a,b)=>b.proj-a.proj).slice(0,40);
  L.push('\nTOP AVAILABLE (waivers): '+av.map(p=>p.name+' '+p.pos+' proj '+pxProj(p)+' own '+p.own+'%'+((p.form&&p.gp)?' L3 '+p.form:'')).join(' | '));
  if(CONN&&CONN.teams&&CONN.teams.length)L.push('\nLEAGUE TEAMS: '+CONN.teams.map(t=>t.name+(t.mine?' (me)':'')).join(', '));
- const vals=DRAFT.slice(0,160).map(p=>p.name+' '+p.pos+(p.pr||'')+' '+Math.round(p.pts));
+ const vals=DRAFT.slice(0,160).map(p=>p.name+' '+p.pos+(p.pr||'')+' '+leagueSeasonVal(p.name,p.pts));
  L.push('\nPLAYER TRADE VALUES (projected season pts, higher=better): '+vals.join(' | '));
  return L.join('\n');
 }
