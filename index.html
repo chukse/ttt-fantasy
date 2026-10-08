@@ -707,7 +707,7 @@ function cmpSearch(){
  var res=document.getElementById('cmpResults'); if(!res)return;
  var q=((document.getElementById('cmpQ')||{}).value||'').toLowerCase();
  var list = q.length>=2 ? WEEK.filter(function(p){return p.name.toLowerCase().indexOf(q)>=0 && p.name!==cmpA.name;}).slice(0,8)
-            : WEEK.filter(function(p){return p.pos===cmpA.pos && p.name!==cmpA.name && p.inj!=='O';}).sort(function(a,b){return pxProj(b)-pxProj(a);}).slice(0,6);
+            : WEEK.filter(function(p){return p.pos===cmpA.pos && p.name!==cmpA.name && p.inj!=='O' && p.opp!=='BYE';}).sort(function(a,b){return pxProj(b)-pxProj(a);}).slice(0,6);
  res.innerHTML=list.map(function(p){return '<div class="row" style="cursor:pointer" data-cmp="'+encodeURIComponent(p.name)+'">'+chip(p.pos)+'<div class="pn"><div class="n">'+esc(p.name)+injBadge(p)+'</div><div class="m">'+p.team+' · '+oppTxt(p)+'</div></div><div class="proj">'+((CONN&&CONN.players)?pxProj(p):p.proj)+'</div></div>';}).join('')
   +(q.length<2?'<div class="mini" style="padding:7px 2px;color:var(--faint)">Showing top '+cmpA.pos+'s — or type any name.</div>':'');
 }
@@ -745,7 +745,7 @@ function sparkSVG(vals,w,h,color){
 function tkSym(name){return (String(name).split(' ').pop()||name).toUpperCase().replace(/[^A-Z]/g,'').slice(0,9);}
 function renderTicker(){
  const el=document.getElementById('ticker');if(!el||!WEEK.length)return;
- const top=[...WEEK].filter(p=>p.inj!=='O').sort((a,b)=>b.proj-a.proj).slice(0,50);
+ const top=[...WEEK].filter(p=>p.inj!=='O'&&p.opp!=='BYE').sort((a,b)=>b.proj-a.proj).slice(0,50);
  const item=p=>{const ch=p.delta||0;const pct=p.base?Math.round(ch/p.base*100):0;const cls=ch>0?'up':ch<0?'dn':'fl';const ar=ch>0?'▲':ch<0?'▼':'·';
   return `<span class="tk" onclick="tickerTap('${(p.name||'').replace(/'/g,"\\'")}')"><span class="sym">${esc(tkSym(p.name))}</span><span class="px">${pxProj(p)}</span><span class="${cls}">${ar}${ch>0?'+':''}${ch} <span class="pct">${pct>0?'+':''}${pct}%</span></span></span>`;};
  const html=top.map(item).join('');
@@ -754,7 +754,7 @@ function renderTicker(){
 function tickerTap(name){showScreen('chat');const q=document.getElementById('chatQ');if(q){q.value=name;chatSend();}}
 function renderMovers(){
  const el=document.getElementById('movers');if(!el)return;
- const pool=WEEK.filter(p=>(p.gp||0)>=1&&p.delta!=null&&p.inj!=='O');
+ const pool=WEEK.filter(p=>(p.gp||0)>=1&&p.delta!=null&&p.inj!=='O'&&p.opp!=='BYE');
  const up=[...pool].sort((a,b)=>b.delta-a.delta).slice(0,5);
  const dn=[...pool].sort((a,b)=>a.delta-b.delta).slice(0,5);
  const row=p=>`<div class="mv tap ${p.delta>=0?'flash-up':'flash-dn'}" data-pl="${encodeURIComponent(p.name)}">${chip(p.pos)}<div class="mvn">${esc(p.name)}</div>${sparkSVG(p.spark,34,16)}<div class="mvd" style="color:var(--${p.delta>=0?'pos':'neg'})">${p.delta>0?'+':''}${p.delta}</div></div>`;
@@ -777,7 +777,7 @@ Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk'),F('adp').
 });
 
 /* ---------- THIS WEEK ---------- */
-function pRow(p,slot){return `<div class="row tap" data-pl="${encodeURIComponent(p.name)}"><div class="slot">${slot||''}</div>${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${injBadge(p)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}</div></div><div class="proj">${pxProj(p)}<small>proj</small></div></div>`}
+function pRow(p,slot){return `<div class="row tap" data-pl="${encodeURIComponent(p.name)}"><div class="slot">${slot||''}</div>${chip(p.pos)}<div class="pn"><div class="n">${esc(p.name)}${injBadge(p)}${mBadge(p)}</div><div class="m">${p.team} · ${oppTxt(p)}</div></div><div class="proj">${p.opp==='BYE'?'<span style="color:var(--faint)">BYE</span>':pxProj(p)+'<small>proj</small>'}</div></div>`}
 function renderWeek(){
  const connected=CONN&&CONN.players;
  document.getElementById('heroCap').innerHTML=connected?`your optimal lineup · ${esc(CONN.team)}`:`demo team — connect your league on the Team tab for yours`;
@@ -819,7 +819,7 @@ function renderWaiver(){
  const noteEl=document.querySelector('#s-waiver .note');
  const connected=CONN&&CONN.rostered&&CONN.rostered.length;
  const taken=connected?new Set(CONN.rostered):null;
- let list=WEEK.filter(p=>(wFilt=="ALL"||p.pos==wFilt)&&p.inj!=='O'&&(!wHideInj||!p.inj)&&(connected?!taken.has(p.name):p.own<75));
+ let list=WEEK.filter(p=>(wFilt=="ALL"||p.pos==wFilt)&&p.inj!=='O'&&p.opp!=='BYE'&&(!wHideInj||!p.inj)&&(connected?!taken.has(p.name):p.own<75));
  list=list.sort(SORTS[wSort]||SORTS.proj).slice(0,40);
  if(noteEl)noteEl.innerHTML=connected?`✓ <b>Available in ${esc(CONN.team)}</b> — tap any player for the full card. Ranked by our model (your ${leaguePPR()}-PPR scoring).`:'<b>% rostered</b> is live ESPN data (▲/▼ = add/drop trend). <b>Tap any player</b> for the full card. Connect your league on the <b>Team</b> tab to filter to players <b>free in your league</b>.';
  document.getElementById('waiverList').innerHTML=list.map(p=>{
@@ -965,7 +965,7 @@ function pxProj(p){                              // the number the optimizer ran
 }
 // --- client-side optimizer (injury-aware, league + trench adjusted) ---
 function optimize(roster){
- const elig=roster.filter(p=>p.inj!=='O');let pool=elig.slice(),start=[];
+ const elig=roster.filter(p=>p.inj!=='O'&&p.opp!=='BYE');let pool=elig.slice(),start=[];
  [['QB',1],['RB',2],['WR',2],['TE',1]].forEach(([pos,n])=>{const s=pool.filter(p=>p.pos==pos).sort((a,b)=>pxProj(b)-pxProj(a)).slice(0,n);start=start.concat(s);pool=pool.filter(p=>!s.includes(p));});
  const fl=pool.filter(p=>['RB','WR','TE'].includes(p.pos)).sort((a,b)=>pxProj(b)-pxProj(a)).slice(0,1);
  const st=start.concat(fl.map(f=>({...f,slot:'FLEX'})));pool=pool.filter(p=>!fl.includes(p));
@@ -1413,7 +1413,7 @@ function buildChatContext(){
   if(LINEUP&&LINEUP.starters)L.push('Optimal lineup ('+LINEUP.total+' proj): '+LINEUP.starters.map(s=>s.slot+' '+s.name+' '+s.proj).join(', '));
  } else L.push('\n(No league connected — the user has no roster loaded.)');
  const taken=(CONN&&CONN.rostered&&CONN.rostered.length)?new Set(CONN.rostered):null;
- const av=WEEK.filter(p=>(taken?!taken.has(p.name):p.own<75)&&p.inj!=='O').sort((a,b)=>b.proj-a.proj).slice(0,40);
+ const av=WEEK.filter(p=>(taken?!taken.has(p.name):p.own<75)&&p.inj!=='O'&&p.opp!=='BYE').sort((a,b)=>b.proj-a.proj).slice(0,40);
  L.push('\nTOP AVAILABLE (waivers): '+av.map(p=>p.name+' '+p.pos+' proj '+pxProj(p)+' own '+p.own+'%'+((p.form&&p.gp)?' L3 '+p.form:'')).join(' | '));
  if(CONN&&CONN.teams&&CONN.teams.length)L.push('\nLEAGUE TEAMS: '+CONN.teams.map(t=>t.name+(t.mine?' (me)':'')).join(', '));
  const vals=DRAFT.slice(0,160).map(p=>p.name+' '+p.pos+(p.pr||'')+' '+leagueSeasonVal(p.name,p.pts));
