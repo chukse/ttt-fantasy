@@ -1589,10 +1589,18 @@ const SB_URL="https://gpcydpgsgburxozdgylf.supabase.co";
 const SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwY3lkcGdzZ2J1cnhvemRneWxmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA1Mzc3NTUsImV4cCI6MjEwNjExMzc1NX0.o01OU4S8wdPdYNXJ-lDwJI_EDjfdY2XgJHS3OLz2xfU";
 const sb=(window.supabase&&SB_URL)?window.supabase.createClient(SB_URL,SB_ANON):null;
 let CURRENT_USER=null, USER_PLAN='free', PLAN_EXP=null;
-function isPro(){ return USER_PLAN==='pro' && (!PLAN_EXP || new Date(PLAN_EXP).getTime()>Date.now()); }
+// --- developer / admin access: full Pro without a subscription ---
+const ADMIN_EMAILS=['chukegbuchunam@yahoo.com','throwinthetowel214@gmail.com'];  // signed in as one of these = always Pro
+const DEV_CODE='toweldev';                                                       // ?dev=toweldev unlocks this device; ?dev=off clears
+(function(){try{var d=new URLSearchParams(location.search).get('dev');
+ if(d===DEV_CODE)localStorage.setItem('ttt_dev','1'); else if(d==='off')localStorage.removeItem('ttt_dev');}catch(e){}})();
+function isAdmin(){ try{ if(localStorage.getItem('ttt_dev')==='1')return true; }catch(e){}
+ return !!(CURRENT_USER&&CURRENT_USER.email&&ADMIN_EMAILS.indexOf(CURRENT_USER.email.toLowerCase())>=0); }
+function isPro(){ if(isAdmin())return true; return USER_PLAN==='pro' && (!PLAN_EXP || new Date(PLAN_EXP).getTime()>Date.now()); }
 function renderAcct(){const b=document.getElementById('acctBtn');if(!b)return;
  if(CURRENT_USER){const em=CURRENT_USER.email||'';const nm=(em.split('@')[0]||'account').slice(0,10);
-  b.textContent=(isPro()?'⚡ ':'◉ ')+nm;b.classList.add('in');b.classList.toggle('pro',isPro());}
+  b.textContent=(isAdmin()?'DEV · ':isPro()?'⚡ ':'◉ ')+nm;b.classList.add('in');b.classList.toggle('pro',isPro());}
+ else if(isAdmin()){b.textContent='DEV';b.classList.add('in','pro');}
  else{b.textContent='Sign in';b.classList.remove('in','pro');}}
 /* gate the Pro screens (CSS hides content, shows the lock card) */
 function applyGate(){ const pro=isPro();
