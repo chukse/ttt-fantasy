@@ -61,7 +61,7 @@ async function towelChat(request, env) {
   try { body = await request.json(); } catch (e) { return J({ error: "bad request body" }, 400); }
   const history = Array.isArray(body.messages) ? body.messages.slice(-20) : [];
   if (!history.length) return J({ error: "no message" }, 400);
-  const ctx = typeof body.context === "string" ? body.context.slice(0, 24000) : "";
+  const ctx = typeof body.context === "string" ? body.context.slice(0, 48000) : "";  // room for the full player index
   const system = TOWEL_PERSONA + "\n\n===== LIVE DATA =====\n" + ctx;
 
   const payload = { model: CHAT_MODEL, max_tokens: 1024, system: system, messages: history };
