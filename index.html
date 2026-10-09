@@ -1406,7 +1406,7 @@ function chatQuick(q){document.getElementById('chatQ').value=q;chatSend();}
 let chatHistory=[];
 function fmtChat(t){return esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');}
 function buildChatContext(){
- const L=[];L.push('Scoring: Full PPR. Current week: '+(META.week||'?')+'.');
+ const L=[];L.push('Scoring: '+(leaguePPR()===1?'Full (1) PPR':leaguePPR()===0?'Standard':leaguePPR()+'-PPR')+'. Current week: '+(META.week||'?')+'. Every projection below is already in THIS league\'s scoring.');
  if(CONN&&CONN.players&&CONN.players.length){
   L.push('\nMY TEAM ('+CONN.team+'):');
   CONN.players.forEach(n=>{const p=wpv(n);if(p)L.push('- '+p.name+' '+p.pos+' '+p.team+' | this-week proj '+pxProj(p)+' vs '+p.opp+' ('+p.matchup+')'+((p.form&&p.gp)?', L3 '+p.form:'')+(p.inj?', status '+p.inj:''));});
@@ -1418,6 +1418,10 @@ function buildChatContext(){
  if(CONN&&CONN.teams&&CONN.teams.length)L.push('\nLEAGUE TEAMS: '+CONN.teams.map(t=>t.name+(t.mine?' (me)':'')).join(', '));
  const vals=DRAFT.slice(0,160).map(p=>p.name+' '+p.pos+(p.pr||'')+' '+leagueSeasonVal(p.name,p.pts));
  L.push('\nPLAYER TRADE VALUES (projected season pts, higher=better): '+vals.join(' | '));
+ // full index so the AI can answer about ANY player the user names (incl. deep / low-owned like Roschon Johnson)
+ L.push('\nALL PLAYERS (name|pos|team|opp|proj|own% — look here for ANY player named, incl. deep/low-owned/injured): '
+   +WEEK.filter(p=>pxProj(p)>=2||(p.own||0)>=1).sort((a,b)=>pxProj(b)-pxProj(a))
+       .map(p=>p.name+'|'+p.pos+'|'+p.team+'|'+(p.opp||'')+'|'+pxProj(p)+'|'+(p.own||0)+'%'+(p.inj?'|'+p.inj:'')).join(' ; '));
  return L.join('\n');
 }
 async function chatSend(){
