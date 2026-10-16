@@ -1066,7 +1066,7 @@ function renderTeam(){
    +`<div class="score-row"><span>Scoring</span><select id="pprSel" onchange="setPPR(this.value)">`
    +[['0','Standard'],['0.5','Half-PPR'],['1','Full PPR'],['1.5','1.5-PPR'],['2','2-PPR']].map(o=>`<option value="${o[0]}"${(+o[0]===leaguePPR())?' selected':''}>${o[1]}</option>`).join('')
    +`</select><span class="mini">your lineup &amp; start/sit use this</span></div>`
-   +(CONN.leagueId?`<button class="cta" id="refreshBtn" style="margin-bottom:8px" onclick="refreshLeague()">↻ Refresh roster from ${esc(CONN.platform)}</button>`:'<div class="note" style="margin-bottom:8px">Reconnect this league once to enable one-tap roster refresh.</div>')
+   +(CONN.leagueId?`<button class="cta" id="refreshBtn" style="margin-bottom:8px" onclick="refreshLeague()">↻ Refresh roster from ${esc(CONN.platform)}</button>`:`<button class="cta" style="margin-bottom:4px" onclick="addingLeague=true;renderTeam()">↻ Reconnect ${esc(CONN.platform)} for live roster sync</button><div class="mini" style="color:var(--amber);margin-bottom:8px">This league was saved without login — reconnect once so we can pull your current roster (add/drops, injuries).</div>`)
    +syncStatusHTML()
    +`<button class="cta" style="background:var(--card2);color:var(--dim)" onclick="disconnect()">Disconnect ${esc(CONN.team)}</button>`;
   const roster=CONN.players.map(n=>WEEK.find(p=>nrm(p.name)===nrm(n))).filter(Boolean).sort((a,b)=>b.proj-a.proj);
