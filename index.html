@@ -901,6 +901,7 @@ async function adapterSleeper(username,season){
  return {platform:'Sleeper',team:lg.name,size:lg.total_rosters,roster};
 }
 let _espnData=null;
+let _lastSync=0,_syncFailed=false; try{_lastSync=+localStorage.getItem('ttt_lastsync')||0;}catch(e){}
 function espnTeamName(t){return t.name||((t.location||'')+' '+(t.nickname||'')).trim()||('Team '+t.id);}
 function espnIds(t){return((t.roster&&t.roster.entries)||[]).map(en=>en.playerId||(en.playerPoolEntry&&en.playerPoolEntry.player&&en.playerPoolEntry.player.id));}
 function pickESPN(teamId){
@@ -1019,7 +1020,7 @@ function optimize(roster){
  return {starters:st,bench,total:Math.round(st.reduce((t,s)=>t+pxProj(s),0)*10)/10,alerts,connected:true,team:CONN&&CONN.team};
 }
 function applyConnectedRoster(){
- const roster=CONN.players.map(n=>WEEK.find(p=>p.name===n)).filter(Boolean);
+ const roster=CONN.players.map(n=>WEEK.find(p=>nrm(p.name)===nrm(n))).filter(Boolean);
  if(roster.length){LINEUP=optimize(roster);}
 }
 function setPPR(v){ if(CONN){ CONN.ppr=+v; VALMAP=null; saveLeagues(); applyConnectedRoster(); renderWeek(); renderTeam(); } }
@@ -1036,9 +1037,17 @@ async function refreshLeague(silent){
   } else if(CONN.platform==='Sleeper'){
    _slUser=CONN.slUser||_slUser; await pickSleeper(CONN.leagueId,CONN.team,CONN.size);
   } else { if(!silent)toast('This league type can\'t auto-refresh — edit it manually.'); return; }
+  _syncFailed=false;_lastSync=Date.now();try{localStorage.setItem('ttt_lastsync',String(_lastSync));}catch(_e){}
   if(!silent)toast('✓ Roster updated from '+CONN.platform+'.');
- }catch(e){ if(!silent)toast('Refresh failed — your cookies may have expired; reconnect the league.'); }
+  if(_onScreen('s-team'))renderTeam();   // reflect fresh roster + "synced just now"
+ }catch(e){ _syncFailed=true; if(!silent)toast('Refresh failed — your cookies may have expired; reconnect the league.'); if(_onScreen('s-team'))renderTeam(); }
  finally{ var b=document.getElementById('refreshBtn'); if(b){b.textContent='↻ Refresh roster';b.disabled=false;} }
+}
+function _onScreen(id){var e=document.getElementById(id);return !!(e&&e.classList.contains('on'));}
+function syncStatusHTML(){
+ if(_syncFailed)return '<div class="note" style="border:1px solid rgba(255,59,71,.45);color:var(--neg);margin-bottom:8px">⚠ Couldn\'t sync your live roster — ESPN sign-in may have expired. Tap <b>Refresh</b> above; if it keeps failing, <b>reconnect</b> the league to re-enter your cookies.</div>';
+ if(_lastSync){var m=Math.round((Date.now()-_lastSync)/60000);var t=m<1?'just now':(m<60?m+'m ago':(Math.round(m/60)+'h ago'));return '<div class="mini" style="color:var(--faint);margin:-2px 0 8px">Roster last synced '+t+'</div>';}
+ return '';
 }
 
 // --- connect flow UI ---
@@ -1058,8 +1067,9 @@ function renderTeam(){
    +[['0','Standard'],['0.5','Half-PPR'],['1','Full PPR'],['1.5','1.5-PPR'],['2','2-PPR']].map(o=>`<option value="${o[0]}"${(+o[0]===leaguePPR())?' selected':''}>${o[1]}</option>`).join('')
    +`</select><span class="mini">your lineup &amp; start/sit use this</span></div>`
    +(CONN.leagueId?`<button class="cta" id="refreshBtn" style="margin-bottom:8px" onclick="refreshLeague()">↻ Refresh roster from ${esc(CONN.platform)}</button>`:'<div class="note" style="margin-bottom:8px">Reconnect this league once to enable one-tap roster refresh.</div>')
+   +syncStatusHTML()
    +`<button class="cta" style="background:var(--card2);color:var(--dim)" onclick="disconnect()">Disconnect ${esc(CONN.team)}</button>`;
-  const roster=CONN.players.map(n=>WEEK.find(p=>p.name===n)).filter(Boolean).sort((a,b)=>b.proj-a.proj);
+  const roster=CONN.players.map(n=>WEEK.find(p=>nrm(p.name)===nrm(n))).filter(Boolean).sort((a,b)=>b.proj-a.proj);
   document.getElementById('rosterCard').style.display='';
   document.getElementById('connMeta').textContent=CONN.platform+' · '+roster.length+' mapped';
   document.getElementById('teamRoster').innerHTML=roster.map(p=>pRow(p,p.pos)).join('')||'<div class="row m" style="padding:10px;color:var(--dim)">No players mapped.</div>';
