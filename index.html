@@ -1312,9 +1312,28 @@ let VALMAP=null;
 function recOf(name){var p=WEEK.find(function(w){return nrm(w.name)===nrm(name)});return p?(p.rec||0):0;}
 function leagueSeasonVal(name,pts){ if(!(CONN&&CONN.players))return Math.round(pts||0); return Math.round((pts||0)+(leaguePPR()-1)*recOf(name)*17); }
 function leaguePPG(name,ppg){ if(!(CONN&&CONN.players))return ppg; return Math.round(((ppg||0)+(leaguePPR()-1)*recOf(name))*10)/10; }
+/* ---------- TRADE VALUE: rest-of-season, live-weighted ----------
+   value = blended PPG × games left. The blend leans on live rolling form and
+   shrinks the preseason prior as a player logs games: liveWeight = gp/(gp+K),
+   so by midseason the preseason number barely moves the needle. K≈2. */
+const ROS_K=2;
+function rosLeft(){return Math.max(1,18-((META&&META.week)||1));}   // ~games remaining through fantasy playoffs
+function livePPG(p){return (p.roll!=null?p.roll:(p.proj!=null?p.proj:p.base))||0;}
+function rosVal(name){
+ const w=WEEK.find(x=>nrm(x.name)===nrm(name));
+ const dp=DRAFT.find(x=>nrm(x.name)===nrm(name));
+ const pre=dp?((+dp.ppg)||((+dp.pts||0)/17)):(w?(w.base||0):0);     // preseason PPG prior
+ const live=w?livePPG(w):pre;                                        // live rolling PPG
+ const gp=(w&&w.gp!=null)?w.gp:Math.max(0,((META&&META.week)||1)-1);
+ const wl=gp/(gp+ROS_K);                                             // live weight; grows every game → preseason fades
+ const ppg=w?(wl*live+(1-wl)*pre):pre;
+ const rec=w?(w.rec||0):0;
+ return Math.round((ppg+(leaguePPR()-1)*rec)*rosLeft());             // league-aware, over the games that remain
+}
 function valMap(){if(VALMAP)return VALMAP;VALMAP={};
- DRAFT.forEach(p=>{VALMAP[nrm(p.name)]={v:leagueSeasonVal(p.name,+p.pts||0),pos:p.pos,pr:p.pr||'',rk:p.rk,name:p.name};});
- WEEK.forEach(p=>{const k=nrm(p.name);if(!VALMAP[k])VALMAP[k]={v:Math.round(((p.roll||p.proj||0)+(leaguePPR()-1)*(p.rec||0))*16),pos:p.pos,pr:'',rk:p.rk||999,name:p.name};});
+ DRAFT.forEach(p=>{VALMAP[nrm(p.name)]={v:rosVal(p.name),pos:p.pos,pr:p.pr||'',rk:p.rk,name:p.name};});
+ WEEK.forEach(p=>{const k=nrm(p.name);if(!VALMAP[k])VALMAP[k]={v:rosVal(p.name),pos:p.pos,pr:'',rk:999,name:p.name};});
+ Object.keys(VALMAP).map(k=>VALMAP[k]).sort((a,b)=>b.v-a.v).forEach((e,i)=>{e.rk=i+1;});  // rank by ROS value, not August
  return VALMAP;}
 function pv(name){return valMap()[nrm(name)]||null;}
 
@@ -1342,19 +1361,19 @@ function tSearch(){
  const hits = q ? pool.filter(p=>p.name.toLowerCase().includes(q)).slice(0,10)
                 : pool.slice().sort((a,b)=>b.pts-a.pts).slice(0,8);   // browse top by value when empty
  const chips='<div class="tabs" style="margin:4px 0 8px">'+['ALL','QB','RB','WR','TE'].map(f=>`<div class="pf${f==trFilt?' on':''}" onclick="trSetFilt('${f}')">${f}</div>`).join('')+'</div>';
- res.innerHTML=chips+(hits.length?hits.map(p=>`<div class="row" style="padding:9px 12px;cursor:pointer" onclick="tAdd('${p.name.replace(/'/g,"\\'")}')">${chip(p.pos)}<div class="pn"><div class="n" style="font-size:14px">${esc(p.name)}</div><div class="m">${p.team} · ${p.pos}${p.pr} · ${leagueSeasonVal(p.name,p.pts)} val</div></div><div class="proj" style="color:var(--primary2)">+</div></div>`).join('') : '<div class="mini" style="padding:8px 4px;color:var(--faint)">No players match.</div>');
+ res.innerHTML=chips+(hits.length?hits.map(p=>`<div class="row" style="padding:9px 12px;cursor:pointer" onclick="tAdd('${p.name.replace(/'/g,"\\'")}')">${chip(p.pos)}<div class="pn"><div class="n" style="font-size:14px">${esc(p.name)}</div><div class="m">${p.team} · ${p.pos}${p.pr} · ${(pv(p.name)||{v:0}).v} ROS val</div></div><div class="proj" style="color:var(--primary2)">+</div></div>`).join('') : '<div class="mini" style="padding:8px 4px;color:var(--faint)">No players match.</div>');
 }
 function tVerdict(){
  const vd=document.getElementById('tradeVerdict'),bd=document.getElementById('tBreakdown');
  const g=tSum(tGive),r=tSum(tGet);
- if(!tGive.length||!tGet.length){vd.innerHTML='';bd.innerHTML='<div class="note" style="margin-top:12px">Add at least one player to each side. We value players by projected season points on our board — the same engine behind the rankings — and tell you which side wins the deal.</div>';return;}
+ if(!tGive.length||!tGet.length){vd.innerHTML='';bd.innerHTML='<div class="note" style="margin-top:12px">Add at least one player to each side. We value players by <b>rest-of-season points from the live model</b> — current form, usage and injuries — with the preseason projection fading more every week, then tell you which side wins the deal.</div>';return;}
  const diff=r-g,base=(g+r)/2||1,pct=diff/base*100;
  let cls,tag;if(pct>=8){cls='win';tag='YOU WIN THIS';}else if(pct<=-8){cls='lose';tag='YOU LOSE THIS';}else{cls='fair';tag='FAIR DEAL';}
  const conf=Math.min(99,Math.round(50+Math.abs(pct)*2.2));
  const gp=Math.round(g/(g+r)*100),rp=100-gp;
  vd.innerHTML=`<div class="verdict ${cls}"><div class="vg">${tag}</div><div class="vs">net ${diff>=0?'+':''}${Math.round(diff)} value to you · ${conf}% confidence</div><div class="fair-bar"><i style="width:${gp}%;background:var(--neg)"></i><i style="width:${rp}%;background:var(--pos)"></i></div><div class="vs">You give ${Math.round(g)} &nbsp;·&nbsp; You get ${Math.round(r)}</div></div>`;
  const line=n=>{const p=pv(n)||{name:n,pos:'',pr:'',v:0,rk:999};return `<div class="row" style="padding:8px 12px">${p.pos?chip(p.pos):''}<div class="pn"><div class="n" style="font-size:14px">${esc(p.name)}</div><div class="m">${p.pos}${p.pr}${p.rk&&p.rk<900?' · our #'+p.rk:''}</div></div><div class="proj">${Math.round(p.v)}<small>val</small></div></div>`;};
- bd.innerHTML=`<div class="card" style="margin-top:12px"><div class="ct">Give</div>${tGive.map(line).join('')}</div><div class="card"><div class="ct">Get</div>${tGet.map(line).join('')}</div><div class="note">${cls==='fair'?'Close enough that need should decide it — take the side that fills a hole in your starting lineup.':cls==='win'?'Our board says you come out ahead. Still weigh position: two good players for one great one only helps if you can start them all.':'Our board says you are paying up. Fine if the guy you are getting fills a real need or is a league-winner — otherwise push back.'} Values are projected season points on the Throw in the Towel board (redraft).</div>`;
+ bd.innerHTML=`<div class="card" style="margin-top:12px"><div class="ct">Give</div>${tGive.map(line).join('')}</div><div class="card"><div class="ct">Get</div>${tGet.map(line).join('')}</div><div class="note">${cls==='fair'?'Close enough that need should decide it — take the side that fills a hole in your starting lineup.':cls==='win'?'Our board says you come out ahead. Still weigh position: two good players for one great one only helps if you can start them all.':'Our board says you are paying up. Fine if the guy you are getting fills a real need or is a league-winner — otherwise push back.'} Values are rest-of-season points from our live model — current form weighted up, preseason weighted down a little more each week.</div>`;
 }
 
 /* ---------- CHANCE TO WIN ---------- */
@@ -1460,8 +1479,8 @@ function buildChatContext(){
  const av=WEEK.filter(p=>(taken?!taken.has(p.name):p.own<75)&&p.inj!=='O'&&p.opp!=='BYE').sort((a,b)=>b.proj-a.proj).slice(0,40);
  L.push('\nTOP AVAILABLE (waivers): '+av.map(p=>p.name+' '+p.pos+' proj '+pxProj(p)+' own '+p.own+'%'+((p.form&&p.gp)?' L3 '+p.form:'')).join(' | '));
  if(CONN&&CONN.teams&&CONN.teams.length)L.push('\nLEAGUE TEAMS: '+CONN.teams.map(t=>t.name+(t.mine?' (me)':'')).join(', '));
- const vals=DRAFT.slice(0,160).map(p=>p.name+' '+p.pos+(p.pr||'')+' '+leagueSeasonVal(p.name,p.pts));
- L.push('\nPLAYER TRADE VALUES (projected season pts, higher=better): '+vals.join(' | '));
+ const vals=DRAFT.slice(0,160).map(p=>p.name+' '+p.pos+(p.pr||'')+' '+(pv(p.name)||{v:0}).v);
+ L.push('\nPLAYER TRADE VALUES (REST-OF-SEASON pts, live form weighted up & preseason down more each week, higher=better): '+vals.join(' | '));
  // full index so the AI can answer about ANY player the user names (incl. deep / low-owned like Roschon Johnson)
  L.push('\nALL PLAYERS (name|pos|team|opp|proj|own% — look here for ANY player named, incl. deep/low-owned/injured): '
    +WEEK.filter(p=>pxProj(p)>=2||(p.own||0)>=1).sort((a,b)=>pxProj(b)-pxProj(a))
