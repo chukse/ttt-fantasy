@@ -457,10 +457,11 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
  .nav button:hover{background:rgba(255,255,255,.03);color:var(--ink)}
  .nav button.on{color:var(--red);background:rgba(255,59,71,.10)}
  /* brand mark pinned in the rail head */
- .nav::before{content:"THROW IN THE TOWEL";position:absolute;top:20px;left:16px;right:14px;font-family:var(--ui);font-weight:800;font-size:12px;letter-spacing:.4px;color:var(--ink);line-height:1.3}
+ .nav::before{content:"";position:absolute;top:20px;left:16px;right:14px;height:1px}
  /* header + ticker span the content area to the right of the rail */
  .top{padding:15px 30px 13px}
- .top .brand{display:none}
+ .top .brand{display:flex}
+ .top .brand-logo{height:32px;width:32px}
  .ticker{top:0}
  /* comfortable operating width; wide holdings rows read like a terminal table */
  .screen{max-width:960px;margin:0 auto;padding:26px 30px 56px}
@@ -654,7 +655,7 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 
 <section class="screen" id="s-matchups">
  <div class="mhead">
-  <img class="towel-logo" src="./logo.png" alt="Throw in the Towel" onload="var w=document.getElementById('wm');if(w)w.style.display='none'" onerror="this.style.display='none'">
+  <img class="towel-logo" src="./assets/titt-logo.jpg" alt="Throw in the Towel" onload="var w=document.getElementById('wm');if(w)w.style.display='none'" onerror="this.style.display='none'">
   <div id="wm" class="wordmark">THROW<span>IN THE</span>TOWEL</div>
   <div class="subtabs" style="margin-top:12px;justify-content:center">
    <div class="pf on" id="mvt-fav" onclick="mvTab('fav')">Favorites</div>
