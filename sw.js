@@ -1,5 +1,5 @@
 // Throw in the Towel — service worker (network-first, offline shell)
-const C = 'ttt-v12';
+const C = 'ttt-v13';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
