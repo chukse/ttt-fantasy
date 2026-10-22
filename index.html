@@ -687,7 +687,11 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 <script>
 // edition switch: public = open-data (./data/, deployed); private = PFF (./private/, local only).
 // ?edition=private sticks on the device; ?edition=public clears it.
-const DATA_DIR=(function(){try{var u=new URLSearchParams(location.search);var e=u.get('edition');
+const DATA_DIR=(function(){try{
+  // private (PFF) edition is LOCAL-ONLY — never honored on the public host (./private/ isn't deployed)
+  var local=location.protocol==='file:'||['localhost','127.0.0.1'].indexOf(location.hostname)>=0;
+  if(!local)return './data/';
+  var u=new URLSearchParams(location.search);var e=u.get('edition');
   if(e==='private'){localStorage.setItem('ttt_edition','private');}else if(e==='public'){localStorage.removeItem('ttt_edition');}
   if(localStorage.getItem('ttt_edition')==='private')return './private/';}catch(_e){}return './data/';})();
 const F=x=>fetch(DATA_DIR+x+'.json?_='+Date.now()).then(r=>r.json());
