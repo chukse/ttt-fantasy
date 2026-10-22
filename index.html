@@ -710,6 +710,7 @@ const DATA_DIR=(function(){try{
   if(e==='private'){localStorage.setItem('ttt_edition','private');}else if(e==='public'){localStorage.removeItem('ttt_edition');}
   if(localStorage.getItem('ttt_edition')==='private')return './private/';}catch(_e){}return './data/';})();
 const F=x=>fetch(DATA_DIR+x+'.json?_='+Date.now()).then(r=>r.json());
+const IS_PRIVATE=(DATA_DIR==='./private/');   // private (local) edition = fully unlocked, no Pro gates
 let DRAFT=[],WEEK=[],LINEUP={},META={},PFF=null,TR=null;
 let dS=JSON.parse(localStorage.getItem("ttt_draft")||"{}"),dHist=JSON.parse(localStorage.getItem("ttt_hist")||"[]"),dFilt="ALL";
 const esc=s=>(s||"").replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
@@ -1715,7 +1716,7 @@ const DEV_CODE='toweldev';                                                      
  if(d===DEV_CODE)localStorage.setItem('ttt_dev','1'); else if(d==='off')localStorage.removeItem('ttt_dev');}catch(e){}})();
 function isAdmin(){ try{ if(localStorage.getItem('ttt_dev')==='1')return true; }catch(e){}
  return !!(CURRENT_USER&&CURRENT_USER.email&&ADMIN_EMAILS.indexOf(CURRENT_USER.email.toLowerCase())>=0); }
-function isPro(){ if(isAdmin())return true; return USER_PLAN==='pro' && (!PLAN_EXP || new Date(PLAN_EXP).getTime()>Date.now()); }
+function isPro(){ if(IS_PRIVATE||isAdmin())return true; return USER_PLAN==='pro' && (!PLAN_EXP || new Date(PLAN_EXP).getTime()>Date.now()); }
 function renderAcct(){const b=document.getElementById('acctBtn');if(!b)return;
  if(CURRENT_USER){const em=CURRENT_USER.email||'';const nm=(em.split('@')[0]||'account').slice(0,10);
   b.textContent=(isAdmin()?'DEV · ':isPro()?'⚡ ':'◉ ')+nm;b.classList.add('in');b.classList.toggle('pro',isPro());}
