@@ -702,15 +702,47 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 <script>
 // edition switch: public = open-data (./data/, deployed); private = PFF (./private/, local only).
 // ?edition=private sticks on the device; ?edition=public clears it.
-const DATA_DIR=(function(){try{
-  // private (PFF) edition is LOCAL-ONLY — never honored on the public host (./private/ isn't deployed)
-  var local=location.protocol==='file:'||['localhost','127.0.0.1'].indexOf(location.hostname)>=0;
-  if(!local)return './data/';
+// edition: public (open-data) · private-local (plain PFF files on localhost) · private-enc (encrypted PFF bundle, any host incl. phone)
+let MODE=(function(){try{
   var u=new URLSearchParams(location.search);var e=u.get('edition');
-  if(e==='private'){localStorage.setItem('ttt_edition','private');}else if(e==='public'){localStorage.removeItem('ttt_edition');}
-  if(localStorage.getItem('ttt_edition')==='private')return './private/';}catch(_e){}return './data/';})();
-const F=x=>fetch(DATA_DIR+x+'.json?_='+Date.now()).then(r=>r.json());
-const IS_PRIVATE=(DATA_DIR==='./private/');   // private (local) edition = fully unlocked, no Pro gates
+  if(e==='private')localStorage.setItem('ttt_edition','private');
+  else if(e==='public')localStorage.removeItem('ttt_edition');
+  if(localStorage.getItem('ttt_edition')!=='private')return 'public';
+  var local=location.protocol==='file:'||['localhost','127.0.0.1'].indexOf(location.hostname)>=0;
+  return local?'private-local':'private-enc';
+}catch(_e){return 'public';}})();
+let DATA_DIR = (MODE==='private-local') ? './private/' : './data/';
+let IS_PRIVATE = (MODE!=='public');   // private editions = fully unlocked, no Pro gates
+let _BUNDLE=null;
+function F(x){ if(_BUNDLE)return Promise.resolve(_BUNDLE[x]!==undefined?_BUNDLE[x]:null);
+  return fetch(DATA_DIR+x+'.json?_='+Date.now()).then(function(r){return r.json();}); }
+async function loadEncBundle(){
+  var pw=''; try{pw=localStorage.getItem('ttt_ppw')||'';}catch(e){}
+  if(!pw)pw=(window.prompt('Private edition — enter password:')||'');
+  if(!pw)throw new Error('no-password');
+  var b64=await fetch('./assets/private.enc?_='+Date.now()).then(function(r){if(!r.ok)throw new Error('no-file');return r.text();});
+  var raw=Uint8Array.from(atob(b64.trim()),function(c){return c.charCodeAt(0);});
+  var salt=raw.slice(0,16),iv=raw.slice(16,28),ct=raw.slice(28);
+  var km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  var key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:salt,iterations:150000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['decrypt']);
+  var pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:iv},key,ct);   // throws on wrong password
+  try{localStorage.setItem('ttt_ppw',pw);}catch(e){}
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function ensureData(){
+  if(MODE!=='private-enc')return;
+  for(var i=0;i<2;i++){
+    try{_BUNDLE=await loadEncBundle();return;}
+    catch(err){ try{localStorage.removeItem('ttt_ppw');}catch(_){}
+      var msg=String((err&&err.message)||err);
+      if(i===0 && msg.indexOf('no-file')<0 && msg.indexOf('no-password')<0) continue;  // wrong pw → re-prompt once
+      MODE='public'; IS_PRIVATE=false; DATA_DIR='./data/'; _BUNDLE=null;
+      try{localStorage.removeItem('ttt_edition');}catch(_){}   // revert to public so it won't re-prompt; re-add ?edition=private to retry
+      if(msg.indexOf('no-password')<0){try{alert('Private edition unavailable (wrong password or not found) — showing public.');}catch(_){}}
+      return;
+    }
+  }
+}
 let DRAFT=[],WEEK=[],LINEUP={},META={},PFF=null,TR=null;
 let dS=JSON.parse(localStorage.getItem("ttt_draft")||"{}"),dHist=JSON.parse(localStorage.getItem("ttt_hist")||"[]"),dFilt="ALL";
 const esc=s=>(s||"").replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
@@ -819,7 +851,7 @@ function renderMovers(){
  el.innerHTML=`<div class="mv-col up"><h3>▲ Rising</h3>${up.map(row).join('')||'<div class="mini" style="padding:6px">—</div>'}</div><div class="mv-col dn"><h3>▼ Falling</h3>${dn.map(row).join('')||'<div class="mini" style="padding:6px">—</div>'}</div>`;
 }
 
-Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk'),F('adp').catch(()=>({})),F('fpros').catch(()=>({})),F('pff').catch(()=>null),F('trenches').catch(()=>null)]).then(([d,w,l,m,x,a,fp,pff,tr])=>{
+ensureData().then(function(){return Promise.all([F('draft'),F('week'),F('lineup'),F('meta'),F('crosswalk'),F('adp').catch(()=>({})),F('fpros').catch(()=>({})),F('pff').catch(()=>null),F('trenches').catch(()=>null)]);}).then(([d,w,l,m,x,a,fp,pff,tr])=>{
  DRAFT=d;WEEK=w;LINEUP=l;META=m;XWALK=x;ADP=a||{};FPROS=fp||{};PFF=pff||null;TR=tr||null;
  document.getElementById('wklbl').textContent='WEEK '+m.week;
  document.getElementById('statusbadge').textContent=m.status;
