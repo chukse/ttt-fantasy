@@ -661,7 +661,7 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
   </div>
  </div>
  <div id="mv-fav">
-  <div class="sub" id="matchSub" style="margin-bottom:12px">The spots we'd chase this week — where PFF scheme + coverage grades tilt the field.</div>
+  <div class="sub" id="matchSub" style="margin-bottom:12px">The spots we'd chase this week — where the matchup data tilts the field.</div>
   <div id="matchBoard"></div>
   <div class="ct" style="padding:16px 2px 8px">Streaming defenses <span class="mini">soft offense × pass rush</span></div>
   <div id="matchStreams"></div>
@@ -685,7 +685,12 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 </nav>
 
 <script>
-const F=x=>fetch('./data/'+x+'.json?_='+Date.now()).then(r=>r.json());
+// edition switch: public = open-data (./data/, deployed); private = PFF (./private/, local only).
+// ?edition=private sticks on the device; ?edition=public clears it.
+const DATA_DIR=(function(){try{var u=new URLSearchParams(location.search);var e=u.get('edition');
+  if(e==='private'){localStorage.setItem('ttt_edition','private');}else if(e==='public'){localStorage.removeItem('ttt_edition');}
+  if(localStorage.getItem('ttt_edition')==='private')return './private/';}catch(_e){}return './data/';})();
+const F=x=>fetch(DATA_DIR+x+'.json?_='+Date.now()).then(r=>r.json());
 let DRAFT=[],WEEK=[],LINEUP={},META={},PFF=null,TR=null;
 let dS=JSON.parse(localStorage.getItem("ttt_draft")||"{}"),dHist=JSON.parse(localStorage.getItem("ttt_hist")||"[]"),dFilt="ALL";
 const esc=s=>(s||"").replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
@@ -716,7 +721,7 @@ function playerCardHTML(p){
    +pcStat('% Rostered',p.own+'%'+(p.chg>=0.5?' ▲':p.chg<=-0.5?' ▼':''))+pcStat('Catches/g',(p.rec!=null?p.rec:'—'))
    +pcStat('ML model',(p.ml!=null?p.ml:'—'))+pcStat('Matchup',(p.matchup||'even'))+'</div>'
   +(p.why?'<div class="pcwhy"><b>Why:</b> '+esc(p.why)+'</div>':'')
-  +(pffTxt?'<div class="pcnote"><b>PFF</b> '+esc(pffTxt)+'</div>':'')
+  +(pffTxt?'<div class="pcnote"><b>Matchup</b> '+esc(pffTxt)+'</div>':'')
   +(trTxt?'<div class="pcnote"><b>Trench</b> '+esc(trTxt)+'</div>':'')
   +'<div class="pcacts"><button class="cta ghost" onclick="openCompare(_cardP)">Compare</button>'
   +'<button class="cta ghost" onclick="askAbout(_cardP)">Ask the Towel →</button></div>';
@@ -1579,7 +1584,7 @@ function boardHTML(list,kind){
 }
 function renderTrenches(){
  var el=document.getElementById('trBody'); if(!el)return;
- if(!TR||!TR.leans){el.innerHTML='<div class="note">Trench rankings refresh each week once the PFF sync runs.</div>';return;}
+ if(!TR||!TR.leans){el.innerHTML='<div class="note">Trench rankings refresh each week once the weekly sync runs.</div>';return;}
  var sub=document.getElementById('trSub'); if(sub)sub.textContent=`Week ${TR.week} — your line vs their front. Start/sit by matchup, plus the OL & defense 1-32.`;
  var pro=isPro(), FREE=3;
  function cat(title,key,kind){
@@ -1608,11 +1613,19 @@ function renderMatchTeaser(){
  if(!PFF||!PFF.matchups||!PFF.matchups.length){el.style.display='none';return;}
  el.style.display='block';
  const t=PFF.matchups[0];
- el.innerHTML=`<div class="teaser-top"><span class="teaser-kick">PFF · WEEK ${PFF.week}</span><span class="teaser-go">Favorite Matchups →</span></div>`
+ el.innerHTML=`<div class="teaser-top"><span class="teaser-kick">${(META&&META.edition==='private')?'PFF · ':''}WEEK ${PFF.week}</span><span class="teaser-go">Favorite Matchups →</span></div>`
   +`<div class="teaser-lead"><span class="mstars">${STARS(t.stars)}</span> <b>${esc(t.name)}</b> <span class="mini">${esc(t.pos)} · ${esc(t.opp||'')}</span></div>`
   +`<div class="teaser-why">${esc(t.why||'')}</div>`;
 }
-function mTags(pff){const t=[];if(pff.yprr)t.push(pff.yprr+' y/rt');if(pff.elusive)t.push(pff.elusive+' ELU');if(pff.pass_grade)t.push(pff.pass_grade+' PFF');if(pff.adot)t.push(pff.adot+' aDOT');return t;}
+function mTags(s){s=s||{};const t=[];
+ // PFF-edition fields
+ if(s.yprr)t.push(s.yprr+' y/rt'); if(s.elusive)t.push(s.elusive+' ELU'); if(s.pass_grade)t.push(s.pass_grade+' grade'); if(s.adot)t.push(s.adot+' aDOT');
+ // open-data-edition fields
+ if(s.tgt_share!=null)t.push((s.tgt_share<=1?Math.round(s.tgt_share*100):Math.round(s.tgt_share))+'% tgt');
+ if(s.air_yards_pg!=null)t.push(Math.round(s.air_yards_pg)+' air/g');
+ if(s.ypg!=null)t.push(Math.round(s.ypg)+' yd/g');
+ if(s.epa_play!=null)t.push((s.epa_play>0?'+':'')+s.epa_play+' EPA');
+ return t.slice(0,3);}
 function mRow(m,i){const pff=m.pff||{};const tags=mTags(pff);
  return `<div class="mrow tap" data-pl="${encodeURIComponent(m.name)}"><div class="mrank">${i+1}</div>${chip(m.pos)}<div class="mmid">`
   +`<div class="mname">${esc(m.name)} <span class="mini">${esc(m.opp||'')}</span></div>`
@@ -1623,8 +1636,8 @@ function mRow(m,i){const pff=m.pff||{};const tags=mTags(pff);
 }
 function renderMatchups(){
  const board=document.getElementById('matchBoard');
- if(!PFF||!PFF.matchups||!PFF.matchups.length){board.innerHTML='<div class="note">Favorite Matchups refresh Wed &amp; Sun once the PFF sync runs.</div>';document.getElementById('matchStreams').innerHTML='';document.getElementById('matchExplorer').innerHTML='';return;}
- const sub=document.getElementById('matchSub');if(sub)sub.textContent=`Week ${PFF.week} — where PFF scheme + coverage grades tilt the field.`;
+ if(!PFF||!PFF.matchups||!PFF.matchups.length){board.innerHTML='<div class="note">Favorite Matchups refresh each week once the weekly sync runs.</div>';document.getElementById('matchStreams').innerHTML='';document.getElementById('matchExplorer').innerHTML='';return;}
+ const sub=document.getElementById('matchSub');if(sub)sub.textContent=`Week ${PFF.week} — the spots we'd chase, where the matchup data tilts the field.`;
  const pro=isPro(), FREE=3, rows=PFF.matchups.map(mRow);
  if(pro){ board.innerHTML=rows.join(''); }
  else {
@@ -1650,6 +1663,16 @@ function tstat(l,v){return `<div class="tstat"><div class="tl">${l}</div><div cl
 function renderTeamCard(t){
  const p=PFF.teams[t], el=document.getElementById('teamCard'); if(!p||!el)return;
  const f1=v=>v==null?null:(+v).toFixed(1), f0=v=>v==null?null:Math.round(v);
+ const e2=v=>v==null?null:((+v>0?'+':'')+(+v).toFixed(2));
+ if(p.proe==null && p.off_pass!=null){   // open-data edition: EPA context, no PFF charting
+  el.innerHTML=`<div class="tcard"><div class="tcard-h up">${t} · OFFENSE</div><div class="grid2">`
+   +tstat('Pass EPA/play',e2(p.off_pass))+tstat('Run EPA/play',e2(p.off_run))
+   +`</div></div><div class="tcard"><div class="tcard-h dn">${t} · DEFENSE</div><div class="grid2">`
+   +tstat('Pass EPA allowed',e2(p.def_pass))+tstat('Run EPA allowed',e2(p.def_run))
+   +tstat('Pressure rate',p.prsh!=null?(p.prsh*100).toFixed(1)+'%':null)+tstat('','')
+   +`</div></div><div class="mini" style="color:var(--faint);padding:6px 2px">Lower EPA allowed = better defense · open-data (nflverse)</div>`;
+  return;
+ }
  el.innerHTML=`<div class="tcard"><div class="tcard-h up">${t} · OFFENSE</div><div class="grid2">`
   +tstat('Pass grade',p.off_pass)+tstat('Run grade',p.off_run)
   +tstat('WR yds/route',p.off_yprr)+tstat('PROE',f1(p.proe))
