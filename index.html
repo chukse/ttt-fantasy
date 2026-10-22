@@ -175,7 +175,7 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 /* chrome bar */
 .top{background:rgba(8,9,11,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:13px 16px 11px}
 .brand .dot,.dot{width:11px;height:11px;border-radius:2px;background:var(--red)}
-.brand-logo{height:30px;width:30px;object-fit:cover;border-radius:6px;display:block;flex:none;border:1px solid var(--line2)}
+.brand-logo{height:34px;width:auto;object-fit:contain;display:block;flex:none}
 .rail-brand{display:none}
 .wk{color:var(--dim);letter-spacing:.6px}
 .badge{background:transparent;border:1px solid var(--line2);color:var(--amber);letter-spacing:1px;border-radius:5px;padding:3px 7px}
@@ -470,7 +470,7 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
  /* brand mark pinned in the rail head */
  /* brand mark (logo + wordmark) pinned in the rail head, top-left */
  .rail-brand{display:flex;align-items:center;gap:9px;position:absolute;top:18px;left:16px;right:14px;font-family:var(--ui);font-weight:800;font-size:12px;letter-spacing:.4px;color:var(--ink);line-height:1.2}
- .rail-brand .brand-logo{height:22px;width:22px}
+ .rail-brand .brand-logo{height:24px;width:auto}
  /* header + ticker span the content area to the right of the rail */
  .top{padding:15px 30px 13px}
  .top .brand{display:none}
@@ -504,7 +504,7 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 </defs></svg>
 <div id="loadOverlay" class="loadov"><div class="spin"></div><div class="loadtxt">LOADING YOUR WEEK…</div></div>
 <div class="top">
- <div class="brand"><img class="brand-logo" src="./assets/titt-logo.jpg" alt="Throw in the Towel">THROW IN THE TOWEL</div>
+ <div class="brand"><img class="brand-logo" src="./assets/titt-logo.png" alt="Throw in the Towel">THROW IN THE TOWEL</div>
  <div style="display:flex;align-items:center;gap:8px"><span class="wk" id="wklbl">WEEK 1</span><span class="badge" id="statusbadge">preseason</span><button class="acct" id="acctBtn" onclick="acctTap()">Sign in</button></div>
 </div>
 <div class="ticker" id="ticker"></div>
@@ -667,7 +667,7 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 
 <section class="screen" id="s-matchups">
  <div class="mhead">
-  <img class="towel-logo" src="./assets/titt-logo.jpg" alt="Throw in the Towel" onload="var w=document.getElementById('wm');if(w)w.style.display='none'" onerror="this.style.display='none'">
+  <img class="towel-logo" src="./assets/titt-logo.png" alt="Throw in the Towel" onload="var w=document.getElementById('wm');if(w)w.style.display='none'" onerror="this.style.display='none'">
   <div id="wm" class="wordmark">THROW<span>IN THE</span>TOWEL</div>
   <div class="subtabs" style="margin-top:12px;justify-content:center">
    <div class="pf on" id="mvt-fav" onclick="mvTab('fav')">Favorites</div>
@@ -689,7 +689,7 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 </section>
 
 <nav class="nav" id="nav">
- <div class="rail-brand"><img class="brand-logo" src="./assets/titt-logo.jpg" alt="Throw in the Towel"><span>THROW IN THE TOWEL</span></div>
+ <div class="rail-brand"><img class="brand-logo" src="./assets/titt-logo.png" alt="Throw in the Towel"><span>THROW IN THE TOWEL</span></div>
  <button data-s="week" class="on"><svg class="ic-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-week"/></svg>Week</button>
  <button data-s="waiver"><svg class="ic-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-waiver"/></svg>Waiver</button>
  <button data-s="trade"><svg class="ic-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-trade"/></svg>Trade</button>
