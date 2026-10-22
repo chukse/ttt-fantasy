@@ -165,6 +165,7 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 /* chrome bar */
 .top{background:rgba(8,9,11,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:13px 16px 11px}
 .brand .dot,.dot{width:11px;height:11px;border-radius:2px;background:var(--red)}
+.brand-logo{height:30px;width:30px;object-fit:cover;border-radius:6px;display:block;flex:none;border:1px solid var(--line2)}
 .wk{color:var(--dim);letter-spacing:.6px}
 .badge{background:transparent;border:1px solid var(--line2);color:var(--amber);letter-spacing:1px;border-radius:5px;padding:3px 7px}
 .sub{color:var(--dim)}
@@ -490,7 +491,7 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 </defs></svg>
 <div id="loadOverlay" class="loadov"><div class="spin"></div><div class="loadtxt">LOADING YOUR WEEK…</div></div>
 <div class="top">
- <div class="brand"><span class="dot"></span>THROW IN THE TOWEL</div>
+ <div class="brand"><img class="brand-logo" src="./assets/titt-logo.jpg" alt="Throw in the Towel">THROW IN THE TOWEL</div>
  <div style="display:flex;align-items:center;gap:8px"><span class="wk" id="wklbl">WEEK 1</span><span class="badge" id="statusbadge">preseason</span><button class="acct" id="acctBtn" onclick="acctTap()">Sign in</button></div>
 </div>
 <div class="ticker" id="ticker"></div>
