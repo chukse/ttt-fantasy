@@ -10,7 +10,17 @@
 <meta name="apple-mobile-web-app-title" content="TTT Fantasy">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="icon" href="./icon-192.png">
-<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){});});}</script>
+<script>if('serviceWorker' in navigator){
+  var _hadCtrl=!!navigator.serviceWorker.controller, _refreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){
+    if(_refreshing||!_hadCtrl)return; _refreshing=true; location.reload();   // new version activated → auto-reload once
+  });
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('./sw.js').then(function(reg){
+      reg.update(); setInterval(function(){reg.update();},60000);             // poll for new deploys every 60s
+    }).catch(function(){});
+  });
+}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
