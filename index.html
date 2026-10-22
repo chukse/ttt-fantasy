@@ -176,6 +176,7 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 .top{background:rgba(8,9,11,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:13px 16px 11px}
 .brand .dot,.dot{width:11px;height:11px;border-radius:2px;background:var(--red)}
 .brand-logo{height:30px;width:30px;object-fit:cover;border-radius:6px;display:block;flex:none;border:1px solid var(--line2)}
+.rail-brand{display:none}
 .wk{color:var(--dim);letter-spacing:.6px}
 .badge{background:transparent;border:1px solid var(--line2);color:var(--amber);letter-spacing:1px;border-radius:5px;padding:3px 7px}
 .sub{color:var(--dim)}
@@ -467,11 +468,12 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
  .nav button:hover{background:rgba(255,255,255,.03);color:var(--ink)}
  .nav button.on{color:var(--red);background:rgba(255,59,71,.10)}
  /* brand mark pinned in the rail head */
- .nav::before{content:"";position:absolute;top:20px;left:16px;right:14px;height:1px}
+ /* brand mark (logo + wordmark) pinned in the rail head, top-left */
+ .rail-brand{display:flex;align-items:center;gap:9px;position:absolute;top:18px;left:16px;right:14px;font-family:var(--ui);font-weight:800;font-size:12px;letter-spacing:.4px;color:var(--ink);line-height:1.2}
+ .rail-brand .brand-logo{height:22px;width:22px}
  /* header + ticker span the content area to the right of the rail */
  .top{padding:15px 30px 13px}
- .top .brand{display:flex}
- .top .brand-logo{height:32px;width:32px}
+ .top .brand{display:none}
  .ticker{top:0}
  /* comfortable operating width; wide holdings rows read like a terminal table */
  .screen{max-width:960px;margin:0 auto;padding:26px 30px 56px}
@@ -687,6 +689,7 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 </section>
 
 <nav class="nav" id="nav">
+ <div class="rail-brand"><img class="brand-logo" src="./assets/titt-logo.jpg" alt="Throw in the Towel"><span>THROW IN THE TOWEL</span></div>
  <button data-s="week" class="on"><svg class="ic-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-week"/></svg>Week</button>
  <button data-s="waiver"><svg class="ic-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-waiver"/></svg>Waiver</button>
  <button data-s="trade"><svg class="ic-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-trade"/></svg>Trade</button>
