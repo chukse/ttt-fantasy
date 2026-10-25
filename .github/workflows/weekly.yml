@@ -16,6 +16,8 @@ jobs:
           python-version: '3.12'
       - run: pip install -r pipeline/requirements.txt
       - run: python pipeline/weekly_update.py
+        env:
+          NOPFF: '1'   # PUBLIC deploy must be PFF-free (license: PFF is personal-use only)
       - name: commit refreshed data
         run: |
           git config user.name "ttt-bot"
