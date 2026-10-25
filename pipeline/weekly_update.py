@@ -288,9 +288,13 @@ def main():
     json.dump(week,open(os.path.join(DATA,"week.json"),"w"))
     hyb="hybrid ML+shrinkage" if model is not None else "shrinkage"
     src=f"rolling {hyb} (live {wk-1}wk)" if (live is not None and wk>1) else "preseason base"
+    nopff = bool(os.getenv("NOPFF"))
+    note = (f"Week {wk} — HYBRID rolling projections ({src}): shrinkage prior blended with a weekly ML model on live features + matchup + nflverse scheme + injuries. Open data only. Ownership = live ESPN % rostered."
+            if nopff else
+            f"Week {wk} — HYBRID rolling projections ({src}): shrinkage prior blended with weekly ML model re-run on live features + matchup + nflverse scheme + PFF TE route grade (4-season backtested, wk10+) + injuries. Ownership = live ESPN % rostered.")
     json.dump({"season":SEASON,"week":wk,"updated":datetime.date.today().isoformat(),
                "status":"in-season" if wk>1 else "preseason","source":src,
-               "note":f"Week {wk} — HYBRID rolling projections ({src}): shrinkage prior blended with weekly ML model re-run on live features + matchup + nflverse scheme + PFF TE route grade (4-season backtested, wk10+) + injuries. Ownership = live ESPN % rostered."},
+               "edition":"public" if nopff else "private","note":note},
               open(os.path.join(DATA,"meta.json"),"w"))
     print(f"[roll] week {wk} · {len(week)} players · {hyb} · {len(FEAT)} ML-scored · {len(inj)} injuries")
 
