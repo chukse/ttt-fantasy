@@ -704,10 +704,9 @@ h2{font-family:var(--ui);font-weight:700;letter-spacing:-.4px;font-size:21px}
 // ?edition=private sticks on the device; ?edition=public clears it.
 // edition: public (open-data) · private-local (plain PFF files on localhost) · private-enc (encrypted PFF bundle, any host incl. phone)
 let MODE=(function(){try{
-  var u=new URLSearchParams(location.search);var e=u.get('edition');
-  if(e==='private')localStorage.setItem('ttt_edition','private');
-  else if(e==='public')localStorage.removeItem('ttt_edition');
-  if(localStorage.getItem('ttt_edition')!=='private')return 'public';
+  var e=new URLSearchParams(location.search).get('edition');
+  try{localStorage.removeItem('ttt_edition');}catch(_){}   // edition is URL-controlled now (no sticky flag) → public link is ALWAYS public
+  if(e!=='private')return 'public';
   var local=location.protocol==='file:'||['localhost','127.0.0.1'].indexOf(location.hostname)>=0;
   return local?'private-local':'private-enc';
 }catch(_e){return 'public';}})();
