@@ -866,6 +866,19 @@ ensureData().then(function(){return Promise.all([F('draft'),F('week'),F('lineup'
  initAuth();
 });
 
+// auto-advance: when the app regains focus (or every 15 min), check the server's week;
+// if it moved past what we loaded (new game week / fresh refresh), reload to catch up.
+function _freshCheck(){
+ if(_BUNDLE)return;                         // encrypted private bundle: can't cheaply re-check
+ if(!(META&&META.week))return;
+ fetch(DATA_DIR+'meta.json?_='+Date.now()).then(function(r){return r.json();}).then(function(m){
+   if(m&&m.week&&m.week!==META.week) location.reload();
+ }).catch(function(){});
+}
+document.addEventListener('visibilitychange',function(){ if(!document.hidden)_freshCheck(); });
+window.addEventListener('focus',_freshCheck);
+setInterval(_freshCheck, 900000);
+
 /* ---------- THIS WEEK ---------- */
 const ROWHEAD='<div class="drow head"><span>POS</span><span>PLAYER</span><span>OPP</span><span class="r">PROJ</span><span class="r">Δ</span></div>';
 function pRow(p,slot){
